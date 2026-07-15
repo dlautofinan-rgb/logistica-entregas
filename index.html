@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Logística de Rotas</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        :root {
+            --primary: #007BFF;
+            --success: #28a745;
+            --danger: #dc3545;
+            --info: #17a2b8;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --whatsapp: #25D366;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 12px;
+            color: var(--text);
+            box-sizing: border-box;
+        }
+
+        h1 { 
+            text-align: center; 
+            font-size: 20px; 
+            margin: 10px 0 15px 0;
+            color: #111; 
+        }
+        
+        #map {
+            width: 100%;
+            height: 220px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            z-index: 1;
+        }
+
+        .controls-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .select-custom, .input-date-custom {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: white;
+            font-weight: bold;
+            box-sizing: border-box;
+            height: 48px;
+        }
+
+        .form-container {
+            background-color: var(--card-bg);
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .form-container h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .form-group { margin-bottom: 12px; position: relative; }
+        .form-group.full-width { grid-column: span 2; }
+        
+        .form-group label { 
+            display: block; 
+            font-weight: 600; 
+            margin-bottom: 4px; 
+            font-size: 12px; 
+            color: #666;
+        }
+        
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-size: 14px;
+            background-color: #fdfdfd;
+        }
+
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+
+        .pecas-container {
+            background: #f1f3f5;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        .pecas-container label {
+            font-weight: bold;
+            font-size: 12px;
+            color: #495057;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .peca-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 6px;
+            margin-bottom: 6px;
+            align-items: center;
+        }
+        .btn-mini {
+            padding: 6px 10px;
+            font-size: 11px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-add-peca { background-color: #6c757d; color: white; margin-bottom: 5px; }
+        .btn-remove-peca { background-color: var(--danger); color: white; padding: 10px;}
+
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 160px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 1px solid #eee;
+        }
+        .suggestion-item:hover { background-color: #f1f3f5; }
+        
+        .btn {
+            padding: 12px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 14px; 
+            width: 100%; 
+            display: block; 
+            text-align: center; 
+            box-sizing: border-box;
+        }
+        .btn-submit { background-color: var(--primary); color: white; }
+        .btn-danger-all { background-color: #fff; color: var(--danger); border: 1px solid var(--danger); margin: 15px 0; padding: 8px; font-size: 13px;}
+        
+        .lista-entregas { margin-top: 5px; }
+
+        .delivery-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border-left: 5px solid var(--primary);
+            position: relative;
+        }
+        .delivery-card.concluida {
+            border-left-color: #bbb;
+            opacity: 0.85;
+            background-color: #f9f9f9;
+        }
+        .delivery-card.concluida .card-title { text-decoration: line-through; color: #777; }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .card-title { font-size: 16px; font-weight: bold; margin: 0; color: #222; }
+
+        .badges-wrapper { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+        .card-date, .card-sequence-badge {
+            font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #fff;
+        }
+        .card-date { background-color: #6c757d; }
+        .card-sequence-badge { background-color: #8e44ad; font-size: 11px; padding: 3px 8px; }
+
+        .card-body { font-size: 13px; line-height: 1.5; color: #444; }
+        .card-body p { margin: 4px 0; }
+        .card-pecas-list { background: #f8f9fa; border-radius: 6px; padding: 6px 10px; margin: 6px 0; border-left: 3px solid #dee2e6; }
+        .card-pecas-list div { font-size: 12px; color: #555; display: flex; justify-content: space-between; }
+        .obs-alert { background: #fff3cd; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-top: 5px !important; display: inline-block;}
+
+        .driver-status-section {
+            background-color: #f1f3f5; border-radius: 8px; padding: 10px; margin-top: 10px; border: 1px dashed #ced4da;
+        }
+        .driver-status-section label {
+            display: block; font-size: 11px; font-weight: bold; color: #495057; margin-bottom: 4px; text-transform: uppercase;
+        }
+        .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .config-group input {
+            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box;
+        }
+
+        .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
+        .btn-action {
+            flex: 1; min-width: 65px; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .btn-gps { background-color: var(--info); color: white; }
+        .btn-whatsapp { background-color: var(--whatsapp); color: white; }
+        .btn-edit { background-color: #ffc107; color: #212529; }
+        .btn-check { background-color: var(--success); color: white; }
+        .btn-delete { background-color: #f8d7da; color: var(--danger); flex: 0 0 35px; min-width: auto; }
+
+        .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
+
+        .modal-edit {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;
+        }
+        .modal-content {
+            background-color: white; width: 100%; max-width: 500px; border-radius: 12px; padding: 20px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .modal-header h3 { margin: 0; font-size: 18px; }
+        .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
+    </style>
+</head>
+<body>
+
+    <h1>📦 Logística de Entregas</h1>
+
+    <div class="controls-container">
+        <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltros()">
+        <select id="filter-driver" class="select-custom" onchange="alterarFiltros()">
+            <option value="Carlos">Carlos</option>
+            <option value="Luiz Marcelo">Luiz Marcelo</option>
+        </select>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="form-container">
+        <h3>➕ Nova Entrega</h3>
+        <form id="route-form" onsubmit="adicionarRota(event)" autocomplete="off">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Cliente:</label>
+                    <input type="text" id="f-cliente" oninput="buscarCliente(this.value)" required>
+                    <div id="suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Contato do Comprador:</label>
+                    <input type="text" id="f-contato" placeholder="(00) 90000-0000">
+                </div>
+            </div>
+
+            <div class="pecas-container">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label>Peças e Valores:</label>
+                    <button type="button" class="btn-mini btn-add-peca" onclick="adicionarLinhaPeca('f-pecas-list')">➕ Add Peça</button>
+                </div>
+                <div id="f-pecas-list">
+                    <div class="peca-row">
+                        <input type="text" placeholder="Nome da Peça" required class="p-nome">
+                        <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
+                        <div style="width:34px"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group"><label>CEP:</label><input type="text" id="f-cep" required></div>
+                <div class="form-group"><label>Posição na Rota (Sequência):</label><input type="number" id="f-sequencia" placeholder="Ex: 1" min="1"></div>
+            </div>
+            <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="f-ruas" required></div>
+            <div class="form-group full-width"><label>Cidade:</label><input type="text" id="f-cidade" required></div>
+            <div class="form-group full-width"><label>Observações:</label><textarea id="f-obs" rows="2"></textarea></div>
+            
+            <button type="submit" class="btn btn-submit">Adicionar à Rota</button>
+        </form>
+    </div>
+
+    <div class="total-badge" id="total-entregas">Total: 0 entregas</div>
+
+    <div class="lista-entregas" id="container-entregas"></div>
+
+    <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
+
+    <div id="modal-editar-entrega" class="modal-edit">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✍️ Editar Entrega</h3>
+                <button type="button" class="close-modal" onclick="fecharModalEditar()">×</button>
+            </div>
+            <form id="edit-form" onsubmit="salvarEdicaoEntrega(event)">
+                <input type="hidden" id="e-id">
+                <div class="form-row">
+                    <div class="form-group"><label>Cliente:</label><input type="text" id="e-cliente" required></div>
+                    <div class="form-group"><label>Contato:</label><input type="text" id="e-contato"></div>
+                </div>
+
+                <div class="pecas-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label>Peças e Valores:</label>
+                        <button type="button" class="btn-mini btn-add-peca" onclick="adicionarLinhaPeca('e-pecas-list')">➕ Add Peça</button>
+                    </div>
+                    <div id="e-pecas-list"></div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group"><label>CEP:</label><input type="text" id="e-cep" required></div>
+                    <div class="form-group"><label>Sequência da Rota:</label><input type="number" id="e-sequencia" min="1"></div>
+                </div>
+                <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="e-ruas" required></div>
+                <div class="form-group full-width"><label>Cidade:</label><input type="text" id="e-cidade" required></div>
+                <div class="form-group full-width"><label>Observações:</label><textarea id="e-obs" rows="2"></textarea></div>
+                
+                <button type="submit" class="btn btn-submit" style="background-color: var(--success); width: 100%;">Salvar Alterações</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCuFiZ4H9u3-od3lVXy2BXLiPHmnQRw1Lw",
+            authDomain: "dl-auto-33f62.firebaseapp.com",
+            databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com", 
+            projectId: "dl-auto-33f62",
+            storageBucket: "dl-auto-33f62.firebasestorage.app",
+            messagingSenderId: "81729132461",
+            appId: "1:81729132461:web:35c1579e8b3d4f91863324"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const rotasRef = ref(db, 'entregas');
+        const clientesRef = ref(db, 'clientes');
+
+        const map = L.map('map').setView([-23.5505, -46.6333], 4); 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+
+        let rotas = [];
+        let listaClientes = {}; 
+
+        const hojeInput = new Date().toISOString().split('T')[0];
+        document.getElementById('filter-date').value = hojeInput;
+
+        onValue(rotasRef, (snapshot) => {
+            const dados = snapshot.val();
+            rotas = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
+            renderizarCards();
+        });
+
+        onValue(clientesRef, (snapshot) => {
+            const dados = snapshot.val();
+            listaClientes = dados ? dados : {};
+        });
+
+        function formatarDataHoraCard(dataString) { 
+            return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
+        }
+
+        window.alterarFiltros = function() {
+            renderizarCards();
+        }
+
+        window.adicionarLinhaPeca = function(containerId, nome = "", valor = "") {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = 'peca-row';
+            div.innerHTML = `
+                <input type="text" placeholder="Nome da Peça" value="${nome}" required class="p-nome">
+                <input type="text" placeholder="Valor" value="${valor}" required class="p-valor">
+                <button type="button" class="btn-mini btn-remove-peca" onclick="this.parentElement.remove()">🗑️</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function obterPecasForm(containerId) {
+            const container = document.getElementById(containerId);
+            const lines = container.querySelectorAll('.peca-row');
+            let list = [];
+            lines.forEach(linha => {
+                const nome = linha.querySelector('.p-nome').value.trim();
+                const valor = linha.querySelector('.p-valor').value.trim();
+                if(nome) list.push({ nome, valor });
+            });
+            return list;
+        }
+
+        function limparEConverterValor(valorTexto) {
+            if (!valorTexto) return 0;
+            let str = String(valorTexto).trim();
+            if (str.includes(',') && str.includes('.')) {
+                str = str.replace(/\./g, '').replace(',', '.');
+            } else if (str.includes(',')) {
+                str = str.replace(',', '.');
+            }
+            const num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
+        }
+
+        window.buscarCliente = function(texto) {
+            const containerSugestoes = document.getElementById('suggestions');
+            containerSugestoes.innerHTML = "";
+            if (!texto || texto.trim().length < 2) { containerSugestoes.style.display = "none"; return; }
+
+            const textoLimpo = texto.toLowerCase().trim();
+            let encontrou = false;
+
+            Object.keys(listaClientes).forEach(nomeCliente => {
+                if (nomeCliente.toLowerCase().includes(textoLimpo)) {
+                    encontrou = true;
+                    const c = listaClientes[nomeCliente];
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.innerText = nomeCliente;
+                    
+                    div.onclick = function() {
+                        document.getElementById('f-cliente').value = nomeCliente;
+                        document.getElementById('f-cep').value = c.cep || "";
+                        document.getElementById('f-ruas').value = c.rua || "";
+                        document.getElementById('f-cidade').value = c.cidade || "";
+                        document.getElementById('f-contato').value = c.contato || "";
+                        containerSugestoes.style.display = "none";
+                    };
+                    containerSugestoes.appendChild(div);
+                }
+            });
+            containerSugestoes.style.display = encontrou ? "block" : "none";
+        };
+
+        document.addEventListener('click', function(e) {
+            if (e.target.id !== 'f-cliente') document.getElementById('suggestions').style.display = "none";
+        });
+
+        window.adicionarRota = function(e) {
+            e.preventDefault();
+            const idGerado = Date.now().toString();
+            const nomeCliente = document.getElementById('f-cliente').value.trim();
+            const cep = document.getElementById('f-cep').value;
+            const rua = document.getElementById('f-ruas').value;
+            const cidade = document.getElementById('f-cidade').value;
+            const contato = document.getElementById('f-contato').value;
+            const pecasDigitadas = obterPecasForm('f-pecas-list');
+            
+            const dataFiltroSelecionada = document.getElementById('filter-date').value;
+
+            const novaRota = {
+                data: new Date().toISOString(),
+                abaData: dataFiltroSelecionada, 
+                abaMotorista: document.getElementById('filter-driver').value,
+                cliente: nomeCliente,
+                pecas: pecasDigitadas,
+                cep: cep,
+                rua: rua,
+                cidade: cidade,
+                contato: contato,
+                sequencia: document.getElementById('f-sequencia').value ? parseInt(document.getElementById('f-sequencia').value) : "", 
+                obs: document.getElementById('f-obs').value,
+                concluida: false,
+                horaSaida: "", 
+                horaChegada: "" 
+            };
+
+            set(ref(db, 'entregas/' + idGerado), novaRota);
+
+            if (nomeCliente) {
+                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato });
+            }
+            
+            document.getElementById('route-form').reset();
+            document.getElementById('f-pecas-list').innerHTML = `
+                <div class="peca-row">
+                    <input type="text" placeholder="Nome da Peça" required class="p-nome">
+                    <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
+                    <div style="width:34px"></div>
+                </div>`;
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        window.abrirModalEditar = function(id) {
+            const rota = rotas.find(r => r.id === id);
+            if (!rota) return;
+
+            document.getElementById('e-id').value = id;
+            document.getElementById('e-cliente').value = rota.cliente || "";
+            document.getElementById('e-cep').value = rota.cep || "";
+            document.getElementById('e-ruas').value = rota.rua || "";
+            document.getElementById('e-cidade').value = rota.cidade || "";
+            document.getElementById('e-contato').value = rota.contato || "";
+            document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
+            document.getElementById('e-obs').value = rota.obs || "";
+
+            const containerPecas = document.getElementById('e-pecas-list');
+            containerPecas.innerHTML = "";
+            
+            if(rota.pecas && rota.pecas.length > 0) {
+                rota.pecas.forEach(p => window.adicionarLinhaPeca('e-pecas-list', p.nome, p.valor));
+            } else if (rota.peca) {
+                window.adicionarLinhaPeca('e-pecas-list', rota.peca, rota.valor);
+            } else {
+                window.adicionarLinhaPeca('e-pecas-list');
+            }
+
+            document.getElementById('modal-editar-entrega').style.display = "flex";
+        }
+
+        window.fecharModalEditar = function() {
+            document.getElementById('modal-editar-entrega').style.display = "none";
+        }
+
+        window.salvarEdicaoEntrega = function(e) {
+            e.preventDefault();
+            const id = document.getElementById('e-id').value;
+            if(!id) return;
+
+            const nomeCliente = document.getElementById('e-cliente').value.trim();
+            const cep = document.getElementById('e-cep').value;
+            const rua = document.getElementById('e-ruas').value;
+            const cidade = document.getElementById('e-cidade').value;
+            const contato = document.getElementById('e-contato').value;
+            const pecasEditadas = obterPecasForm('e-pecas-list');
+
+            const dadosAtualizados = {
+                cliente: nomeCliente,
+                pecas: pecasEditadas,
+                cep: cep,
+                rua: rua,
+                cidade: cidade,
+                contato: contato,
+                sequencia: document.getElementById('e-sequencia').value ? parseInt(document.getElementById('e-sequencia').value) : "",
+                obs: document.getElementById('e-obs').value
+            };
+
+            update(ref(db, 'entregas/' + id), dadosAtualizados);
+            if (nomeCliente) {
+                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato });
+            }
+            fecharModalEditar();
+        }
+
+        window.abrirNoGps = function(rua, city) {
+            const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
+            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
+        }
+
+        window.abrirContato = function(telefone) {
+            const apenasNumeros = telefone.replace(/\D/g, "");
+            if(apenasNumeros.length >= 10) {
+                window.open("https://wa.me/55" + apenasNumeros, '_blank');
+            } else {
+                window.open("tel:" + apenasNumeros, '_self');
+            }
+        }
+
+        window.atualizarDadoEntrega = function(id, campo, valor) {
+            const dadosAtualizar = {};
+            dadosAtualizar[campo] = campo === 'sequencia' && valor !== "" ? parseInt(valor) : valor;
+            update(ref(db, 'entregas/' + id), dadosAtualizar);
+        }
+
+        window.alternarConclusao = function(id) { 
+            const rota = rotas.find(r => r.id === id); 
+            if(rota) { 
+                const novoEstado = !rota.concluida;
+                const atualizacoes = { concluida: novoEstado };
+                if(novoEstado && !rota.horaChegada) {
+                    atualizacoes.horaChegada = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                }
+                update(ref(db, 'entregas/' + id), atualizacoes);
+            } 
+        }
+
+        window.excluirRota = function(id) { if (confirm("Excluir esta entrega?")) set(ref(db, 'entregas/' + id), null); }
+        window.excluirTudo = function() { if (confirm("Apagar todas as entregas desta visão?")) set(rotasRef, null); }
+
+        function renderizarCards() {
+            const container = document.getElementById('container-entregas');
+            const totalBadge = document.getElementById('total-entregas');
+            container.innerHTML = "";
+
+            const filtroDataSel = document.getElementById('filter-date').value; 
+            const filtroMotoristaSel = document.getElementById('filter-driver').value;
+
+            let rotasFiltradas = rotas.filter(r => {
+                let dataMatch = false;
+                if (r.abaData) {
+                    // Garante que se o registro antigo estiver com a etiqueta textual "Hoje", ele seja lido como a data de hoje correta
+                    if (r.abaData === "Hoje" && filtroDataSel === hojeInput) dataMatch = true;
+                    else dataMatch = (r.abaData === filtroDataSel);
+                } else {
+                    dataMatch = (filtroDataSel === hojeInput);
+                }
+
+                const driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
+                return dataMatch && driverMatch;
+            });
+
+            rotasFiltradas.sort((a, b) => {
+                const seqA = a.sequencia !== undefined && a.sequencia !== "" ? parseInt(a.sequencia) : 99999;
+                const seqB = b.sequencia !== undefined && b.sequencia !== "" ? parseInt(b.sequencia) : 99999;
+                if (seqA !== seqB) return seqA - seqB;
+                return new Date(b.data) - new Date(a.data);
+            });
+
+            totalBadge.innerText = `Total: ${rotasFiltradas.length} entrega(s)`;
+            if (rotasFiltradas.length === 0) {
+                container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma rota pendente para este dia.</p>";
+                return;
+            }
+
+            rotasFiltradas.forEach(rota => {
+                const dataFormatada = formatarDataHoraCard(rota.data);
+                const classeConcluida = rota.concluida ? 'concluida' : '';
+                const textoBotaoConcluir = rota.concluida ? '↩️ Refazer' : '✅ Concluir';
+                const contatoComprador = rota.contato || "";
+                const numSequencia = rota.sequencia !== undefined ? rota.sequencia : "";
+                const hSaida = rota.horaSaida || "";
+                const hChegada = rota.horaChegada || "";
+
+                let htmlPecas = "";
+                let valorTotalGeral = 0;
+
+                if (rota.pecas && rota.pecas.length > 0) {
+                    rota.pecas.forEach(p => {
+                        const valNum = limparEConverterValor(p.valor);
+                        htmlPecas += `<div><span>• ${p.nome}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
+                        valorTotalGeral += valNum;
+                    });
+                } else if (rota.peca) { 
+                    const valNum = limparEConverterValor(rota.valor);
+                    htmlPecas += `<div><span>• ${rota.peca}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
+                    valorTotalGeral = valNum;
+                }
+
+                container.innerHTML += `
+                    <div class="delivery-card ${classeConcluida}">
+                        <div class="card-header">
+                            <h4 class="card-title">${rota.cliente}</h4>
+                            <div class="badges-wrapper">
+                                ${numSequencia ? `<span class="card-sequence-badge">📍 Posição: ${numSequencia}º</span>` : ''}
+                                <span class="card-date">${dataFormatada}</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Lista de Peças:</strong></p>
+                            <div class="card-pecas-list">${htmlPecas}</div>
+                            <p><strong>Valor Total:</strong> R$ ${valorTotalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            <p><strong>Endereço:</strong> ${rota.rua}, ${rota.cidade}</p>
+                            <p><strong>CEP:</strong> ${rota.cep}</p>
+                            ${contatoComprador ? `<p><strong>Contato:</strong> ${contatoComprador}</p>` : ''}
+                            ${rota.obs ? `<p class="obs-alert">⚠️ <strong>Obs:</strong> ${rota.obs}</p>` : ''}
+                            
+                            <div class="driver-status-section">
+                                <div class="config-row">
+                                    <div class="config-group">
+                                        <label>⏰ Saída Motorista:</label>
+                                        <input type="time" value="${hSaida}" onchange="atualizarDadoEntrega('${rota.id}', 'horaSaida', this.value)">
+                                    </div>
+                                    <div class="config-group">
+                                        <label>🏁 Chegada Local:</label>
+                                        <input type="time" value="${hChegada}" onchange="atualizarDadoEntrega('${rota.id}', 'horaChegada', this.value)">
+                                    </div>
+                                </div>
+                                <div class="config-row" style="grid-template-columns: 1fr;">
+                                    <div class="config-group">
+                                        <label>🔢 Alterar Posição / Sequência:</label>
+                                        <input type="number" value="${numSequencia}" placeholder="Ex: 1" onchange="atualizarDadoEntrega('${rota.id}', 'sequencia', this.value)" min="1">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-action btn-gps" onclick="abrirNoGps('${rota.rua}', '${rota.cidade}')">🗺️ GPS</button>
+                            ${contatoComprador ? `<button class="btn-action btn-whatsapp" onclick="abrirContato('${contatoComprador}')">💬 Contato</button>` : ''}
+                            <button class="btn-action btn-edit" onclick="abrirModalEditar('${rota.id}')">✍️ Editar</button>
+                            <button class="btn-action btn-check" onclick="alternarConclusao('${rota.id}')">${textoBotaoConcluir}</button>
+                            <button class="btn-action btn-delete" onclick="excluirRota('${rota.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
