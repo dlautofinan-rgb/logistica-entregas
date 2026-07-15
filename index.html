@@ -225,8 +225,8 @@
             display: block; font-size: 11px; font-weight: bold; color: #495057; margin-bottom: 4px; text-transform: uppercase;
         }
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-        .config-group input {
-            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box;
+        .config-group input, .config-group select {
+            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; height: 31px;
         }
 
         .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
@@ -342,7 +342,7 @@
                 <div class="form-group full-width"><label>Cidade:</label><input type="text" id="e-cidade" required></div>
                 
                 <div class="form-group full-width">
-                    <label>Motorista Escalado:</label>
+                    <label>👤 Motorista Escalado:</label>
                     <select id="e-motorista">
                         <option value="Carlos">Carlos</option>
                         <option value="Luiz Marcelo">Luiz Marcelo</option>
@@ -538,7 +538,7 @@
             document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
             document.getElementById('e-obs').value = rota.obs || "";
 
-            // Preenche o campo de motorista correspondente
+            // CARREGA O MOTORISTA NO DROPDOWN DO MODAL DE EDIÇÃO
             document.getElementById('e-motorista').value = rota.abaMotorista || "Carlos";
 
             const containerPecas = document.getElementById('e-pecas-list');
@@ -570,7 +570,7 @@
             const cidade = document.getElementById('e-cidade').value;
             const contato = document.getElementById('e-contato').value;
             const pecasEditadas = obterPecasForm('e-pecas-list');
-            const novoMotorista = document.getElementById('e-motorista').value;
+            const novoMotorista = document.getElementById('e-motorista').value; // PEGA O MOTORISTA DO MODAL
 
             const dadosAtualizados = {
                 cliente: nomeCliente,
@@ -580,7 +580,7 @@
                 cidade: cidade,
                 contato: contato,
                 sequencia: document.getElementById('e-sequencia').value ? parseInt(document.getElementById('e-sequencia').value) : "",
-                abaMotorista: novoMotorista,
+                abaMotorista: novoMotorista, // ATUALIZA O MOTORISTA NO FIREBASE
                 obs: document.getElementById('e-obs').value
             };
 
@@ -713,9 +713,16 @@
                                         <input type="time" value="${hChegada}" onchange="atualizarDadoEntrega('${rota.id}', 'horaChegada', this.value)">
                                     </div>
                                 </div>
-                                <div class="config-row" style="grid-template-columns: 1fr;">
+                                <div class="config-row">
                                     <div class="config-group">
-                                        <label>🔢 Alterar Posição / Sequência:</label>
+                                        <label>👤 Mudar Motorista:</label>
+                                        <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)" style="width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; height: 31px; box-sizing: border-box; background: white;">
+                                            <option value="Carlos" ${rota.abaMotorista === 'Carlos' || !rota.abaMotorista ? 'selected' : ''}>Carlos</option>
+                                            <option value="Luiz Marcelo" ${rota.abaMotorista === 'Luiz Marcelo' ? 'selected' : ''}>Luiz Marcelo</option>
+                                        </select>
+                                    </div>
+                                    <div class="config-group">
+                                        <label>🔢 Alterar Posição:</label>
                                         <input type="number" value="${numSequencia}" placeholder="Ex: 1" onchange="atualizarDadoEntrega('${rota.id}', 'sequencia', this.value)" min="1">
                                     </div>
                                 </div>
