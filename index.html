@@ -374,7 +374,12 @@
         let rotas = [];
         let listaClientes = {}; 
 
-        const hojeInput = new Date().toISOString().split('T')[0];
+        // Forçar fuso horário local ao invés de UTC
+        const fusoLocal = new Date();
+        const offset = fusoLocal.getTimezoneOffset();
+        const dataLocalAjustada = new Date(fusoLocal.getTime() - (offset * 60 * 1000));
+        const hojeInput = dataLocalAjustada.toISOString().split('T')[0];
+        
         document.getElementById('filter-date').value = hojeInput;
 
         onValue(rotasRef, (snapshot) => {
@@ -574,6 +579,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
+            // Correção da interpolação de string do GPS
             window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
         }
 
@@ -618,7 +624,7 @@
             let rotasFiltradas = rotas.filter(r => {
                 let dataMatch = false;
                 if (r.abaData) {
-                    // Garante que se o registro antigo estiver com a etiqueta textual "Hoje", ele seja lido como a data de hoje correta
+                    // Trata também quem estava gravado como "Hoje" antigamente
                     if (r.abaData === "Hoje" && filtroDataSel === hojeInput) dataMatch = true;
                     else dataMatch = (r.abaData === filtroDataSel);
                 } else {
