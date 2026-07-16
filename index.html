@@ -17,13 +17,14 @@
             --card-bg: #ffffff;
             --text: #333333;
             --whatsapp: #25D366;
+            --warning: #ffc107;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg);
             margin: 0;
-            padding: 12px;
+            padding: 12px 12px 180px 12px; /* Margem inferior aumentada para não cobrir o resumo fixo */
             color: var(--text);
             box-sizing: border-box;
         }
@@ -197,6 +198,11 @@
         }
         .delivery-card.concluida .card-title { text-decoration: line-through; color: #777; }
 
+        .delivery-card.devolvida {
+            border-left-color: var(--danger);
+            background-color: #fdf3f4;
+        }
+
         .card-header {
             display: flex;
             justify-content: space-between;
@@ -206,11 +212,12 @@
         .card-title { font-size: 16px; font-weight: bold; margin: 0; color: #222; }
 
         .badges-wrapper { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
-        .card-date, .card-sequence-badge {
+        .card-date, .card-sequence-badge, .card-returned-badge {
             font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #fff;
         }
         .card-date { background-color: #6c757d; }
         .card-sequence-badge { background-color: #8e44ad; font-size: 11px; padding: 3px 8px; }
+        .card-returned-badge { background-color: var(--danger); font-size: 11px; padding: 3px 8px; }
 
         .card-body { font-size: 13px; line-height: 1.5; color: #444; }
         .card-body p { margin: 4px 0; }
@@ -226,7 +233,7 @@
         }
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
         .config-group input, .config-group select {
-            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; height: 31px; background: white;
+            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; background: white;
         }
 
         .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
@@ -235,8 +242,9 @@
         }
         .btn-gps { background-color: var(--info); color: white; }
         .btn-whatsapp { background-color: var(--whatsapp); color: white; }
-        .btn-edit { background-color: #ffc107; color: #212529; }
+        .btn-edit { background-color: var(--warning); color: #212529; }
         .btn-check { background-color: var(--success); color: white; }
+        .btn-return { background-color: #ff9800; color: white; }
         .btn-delete { background-color: #f8d7da; color: var(--danger); flex: 0 0 35px; min-width: auto; }
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
@@ -250,6 +258,87 @@
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .modal-header h3 { margin: 0; font-size: 18px; }
         .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
+
+        /* ABA FIXA DE RESUMO DE PAGAMENTOS NO RODAPÉ */
+        .payments-summary-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-top: 3px solid var(--primary);
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.12);
+            padding: 10px 15px;
+            z-index: 1000;
+            box-sizing: border-box;
+        }
+        .summary-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #444;
+            margin: 0 0 8px 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            text-align: center;
+        }
+        .summary-box {
+            background: #f1f3f5;
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .summary-label {
+            font-size: 9px;
+            color: #666;
+            font-weight: bold;
+            display: block;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .summary-value {
+            font-size: 12px;
+            font-weight: 800;
+            color: #111;
+        }
+        .summary-value.has-value {
+            color: var(--success);
+        }
+
+        /* Botão mini para anular pagamento rápido no card */
+        .btn-clear-pay {
+            background-color: #6c757d;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .btn-clear-pay:hover {
+            background-color: var(--danger);
+        }
+
+        @media (max-width: 600px) {
+            .summary-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .summary-box:nth-child(4), .summary-box:nth-child(5) {
+                grid-column: span 1;
+            }
+            body {
+                padding-bottom: 220px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -304,8 +393,9 @@
             
             <div class="form-group full-width">
                 <label>💳 Forma de Pagamento:</label>
-                <select id="f-pagamento" required>
-                    <option value="PIX">PIX</option>
+                <select id="f-pagamento">
+                    <option value="">-- Sem Pagamento Selecionado --</option>
+                    <option value="PIX" selected>PIX</option>
                     <option value="Cartão de Crédito à Vista">Cartão de Crédito à Vista</option>
                     <option value="Crédito Parcelado">Crédito Parcelado</option>
                     <option value="Cartão de Débito">Cartão de Débito</option>
@@ -324,6 +414,32 @@
     <div class="lista-entregas" id="container-entregas"></div>
 
     <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
+
+    <div class="payments-summary-bar">
+        <div class="summary-title">💰 Resumo de Pagamentos do Dia</div>
+        <div class="summary-grid">
+            <div class="summary-box">
+                <span class="summary-label">Pix</span>
+                <span class="summary-value" id="sum-pix">R$ 0,00</span>
+            </div>
+            <div class="summary-box">
+                <span class="summary-label">Créd. À Vista</span>
+                <span class="summary-value" id="sum-credito-vista">R$ 0,00</span>
+            </div>
+            <div class="summary-box">
+                <span class="summary-label">Créd. Parc.</span>
+                <span class="summary-value" id="sum-credito-parcelado">R$ 0,00</span>
+            </div>
+            <div class="summary-box">
+                <span class="summary-label">Débito</span>
+                <span class="summary-value" id="sum-debito">R$ 0,00</span>
+            </div>
+            <div class="summary-box">
+                <span class="summary-label">Dinheiro</span>
+                <span class="summary-value" id="sum-dinheiro">R$ 0,00</span>
+            </div>
+        </div>
+    </div>
 
     <div id="modal-editar-entrega" class="modal-edit">
         <div class="modal-content">
@@ -355,20 +471,13 @@
                 
                 <div class="form-group full-width">
                     <label>💳 Forma de Pagamento:</label>
-                    <select id="e-pagamento" required>
+                    <select id="e-pagamento">
+                        <option value="">-- Sem Pagamento Selecionado --</option>
                         <option value="PIX">PIX</option>
                         <option value="Cartão de Crédito à Vista">Cartão de Crédito à Vista</option>
                         <option value="Crédito Parcelado">Crédito Parcelado</option>
                         <option value="Cartão de Débito">Cartão de Débito</option>
                         <option value="Dinheiro">Dinheiro</option>
-                    </select>
-                </div>
-
-                <div class="form-group full-width">
-                    <label>👤 Motorista Escalado:</label>
-                    <select id="e-motorista">
-                        <option value="Carlos">Carlos</option>
-                        <option value="Luiz Marcelo">Luiz Marcelo</option>
                     </select>
                 </div>
 
@@ -450,16 +559,11 @@
             const lines = container.querySelectorAll('.peca-row');
             let list = [];
             lines.forEach(linha => {
-                const nome = inlineGet(linha, '.p-nome');
-                const valor = inlineGet(linha, '.p-valor');
+                const nome = linha.querySelector('.p-nome').value.trim();
+                const valor = linha.querySelector('.p-valor').value.trim();
                 if(nome) list.push({ nome, valor });
             });
             return list;
-        }
-
-        function inlineGet(linha, selector) {
-            const el = linha.querySelector(selector);
-            return el ? el.value.trim() : "";
         }
 
         function limparEConverterValor(valorTexto) {
@@ -535,6 +639,7 @@
                 sequencia: document.getElementById('f-sequencia').value ? parseInt(document.getElementById('f-sequencia').value) : "", 
                 obs: document.getElementById('f-obs').value,
                 concluida: false,
+                devolvida: false, // Inicializa como não devolvida
                 horaSaida: "", 
                 horaChegada: "" 
             };
@@ -567,10 +672,7 @@
             document.getElementById('e-contato').value = rota.contato || "";
             document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
             document.getElementById('e-obs').value = rota.obs || "";
-            
-            // CARREGA A FORMA DE PAGAMENTO E MOTORISTA NO MODAL
-            document.getElementById('e-pagamento').value = rota.pagamento || "PIX";
-            document.getElementById('e-motorista').value = rota.abaMotorista || "Carlos";
+            document.getElementById('e-pagamento').value = rota.pagamento || "";
 
             const containerPecas = document.getElementById('e-pecas-list');
             containerPecas.innerHTML = "";
@@ -602,7 +704,6 @@
             const contato = document.getElementById('e-contato').value;
             const pecasEditadas = obterPecasForm('e-pecas-list');
             const pagamentoEditado = document.getElementById('e-pagamento').value;
-            const motoristaEditado = document.getElementById('e-motorista').value;
 
             const dadosAtualizados = {
                 cliente: nomeCliente,
@@ -612,7 +713,6 @@
                 cidade: cidade,
                 contato: contato,
                 pagamento: pagamentoEditado,
-                abaMotorista: motoristaEditado,
                 sequencia: document.getElementById('e-sequencia').value ? parseInt(document.getElementById('e-sequencia').value) : "",
                 obs: document.getElementById('e-obs').value
             };
@@ -626,7 +726,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://maps.google.com/?q=${enderecoFormatado}`, '_blank');
+            window.open(`http://maps.google.com/?q=${enderecoFormatado}`, '_blank');
         }
 
         window.abrirContato = function(telefone) {
@@ -654,6 +754,20 @@
                 }
                 update(ref(db, 'entregas/' + id), atualizacoes);
             } 
+        }
+
+        window.alternarDevolucao = function(id) {
+            const rota = rotas.find(r => r.id === id);
+            if(rota) {
+                const novoEstado = !rota.devolvida;
+                update(ref(db, 'entregas/' + id), { devolvida: novoEstado });
+            }
+        }
+
+        window.removerPagamento = function(id) {
+            if (confirm("Deseja remover a forma de pagamento dessa venda?")) {
+                update(ref(db, 'entregas/' + id), { pagamento: "" });
+            }
         }
 
         window.excluirRota = function(id) { if (confirm("Excluir esta entrega?")) set(ref(db, 'entregas/' + id), null); }
@@ -688,20 +802,33 @@
             });
 
             totalBadge.innerText = `Total: ${rotasFiltradas.length} entrega(s)`;
+
+            // CALCULAR ACUMULADOS DE PAGAMENTO (IGNORA DEVOLVIDOS)
+            let totalPix = 0;
+            let totalCreditoVista = 0;
+            let totalCreditoParcelado = 0;
+            let totalDebito = 0;
+            let totalDinheiro = 0;
+
             if (rotasFiltradas.length === 0) {
                 container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma rota pendente para este dia.</p>";
-                return;
             }
 
             rotasFiltradas.forEach(rota => {
                 const dataFormatada = formatarDataHoraCard(rota.data);
-                const classeConcluida = rota.concluida ? 'concluida' : '';
+                
+                let classeEstado = '';
+                if (rota.devolvida) classeEstado = 'devolvida';
+                else if (rota.concluida) classeEstado = 'concluida';
+
                 const textoBotaoConcluir = rota.concluida ? '↩️ Refazer' : '✅ Concluir';
+                const textoBotaoDevolver = rota.devolvida ? '↩️ Desfazer Dev.' : '🔄 Devolver';
+                
                 const contatoComprador = rota.contato || "";
                 const numSequencia = rota.sequencia !== undefined ? rota.sequencia : "";
                 const hSaida = rota.horaSaida || "";
                 const hChegada = rota.horaChegada || "";
-                const pagamento = rota.pagamento || "PIX";
+                const pagamento = rota.pagamento || "";
 
                 let htmlPecas = "";
                 let valorTotalGeral = 0;
@@ -718,11 +845,29 @@
                     valorTotalGeral = valNum;
                 }
 
+                // Somar apenas se NÃO for devolvido
+                if (!rota.devolvida) {
+                    if (pagamento === "PIX") totalPix += valorTotalGeral;
+                    else if (pagamento === "Cartão de Crédito à Vista") totalCreditoVista += valorTotalGeral;
+                    else if (pagamento === "Crédito Parcelado") totalCreditoParcelado += valorTotalGeral;
+                    else if (pagamento === "Cartão de Débito") totalDebito += valorTotalGeral;
+                    else if (pagamento === "Dinheiro") totalDinheiro += valorTotalGeral;
+                }
+
+                let displayPagamento = "";
+                if (pagamento) {
+                    displayPagamento = `💳 <span style="font-weight: bold; color: var(--success);">${pagamento}</span>
+                                       <button class="btn-clear-pay" onclick="removerPagamento('${rota.id}')">Remover Pag.</button>`;
+                } else {
+                    displayPagamento = `<span style="color: #999; font-style: italic;">Não especificado</span>`;
+                }
+
                 container.innerHTML += `
-                    <div class="delivery-card ${classeConcluida}">
+                    <div class="delivery-card ${classeEstado}">
                         <div class="card-header">
                             <h4 class="card-title">${rota.cliente}</h4>
                             <div class="badges-wrapper">
+                                ${rota.devolvida ? `<span class="card-returned-badge">🔄 DEVOLVIDO</span>` : ''}
                                 ${numSequencia ? `<span class="card-sequence-badge">📍 Posição: ${numSequencia}º</span>` : ''}
                                 <span class="card-date">${dataFormatada}</span>
                             </div>
@@ -731,7 +876,7 @@
                             <p><strong>Lista de Peças:</strong></p>
                             <div class="card-pecas-list">${htmlPecas}</div>
                             <p><strong>Valor Total:</strong> R$ ${valorTotalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                            <p><strong>Forma de Pagamento:</strong> 💳 <span style="font-weight: bold; color: var(--success);">${pagamento}</span></p>
+                            <p><strong>Forma de Pagamento:</strong> ${displayPagamento}</p>
                             <p><strong>Endereço:</strong> ${rota.rua}, ${rota.cidade}</p>
                             <p><strong>CEP:</strong> ${rota.cep}</p>
                             ${contatoComprador ? `<p><strong>Contato:</strong> ${contatoComprador}</p>` : ''}
@@ -748,16 +893,9 @@
                                         <input type="time" value="${hChegada}" onchange="atualizarDadoEntrega('${rota.id}', 'horaChegada', this.value)">
                                     </div>
                                 </div>
-                                <div class="config-row">
+                                <div class="config-row" style="grid-template-columns: 1fr;">
                                     <div class="config-group">
-                                        <label>👤 Mudar Motorista:</label>
-                                        <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)">
-                                            <option value="Carlos" ${rota.abaMotorista === 'Carlos' || !rota.abaMotorista ? 'selected' : ''}>Carlos</option>
-                                            <option value="Luiz Marcelo" ${rota.abaMotorista === 'Luiz Marcelo' ? 'selected' : ''}>Luiz Marcelo</option>
-                                        </select>
-                                    </div>
-                                    <div class="config-group">
-                                        <label>🔢 Alterar Posição:</label>
+                                        <label>🔢 Alterar Posição / Sequência:</label>
                                         <input type="number" value="${numSequencia}" placeholder="Ex: 1" onchange="atualizarDadoEntrega('${rota.id}', 'sequencia', this.value)" min="1">
                                     </div>
                                 </div>
@@ -767,12 +905,30 @@
                             <button class="btn-action btn-gps" onclick="abrirNoGps('${rota.rua}', '${rota.cidade}')">🗺️ GPS</button>
                             ${contatoComprador ? `<button class="btn-action btn-whatsapp" onclick="abrirContato('${contatoComprador}')">💬 Contato</button>` : ''}
                             <button class="btn-action btn-edit" onclick="abrirModalEditar('${rota.id}')">✍️ Editar</button>
+                            <button class="btn-action btn-return" onclick="alternarDevolucao('${rota.id}')">${textoBotaoDevolver}</button>
                             <button class="btn-action btn-check" onclick="alternarConclusao('${rota.id}')">${textoBotaoConcluir}</button>
                             <button class="btn-action btn-delete" onclick="excluirRota('${rota.id}')">🗑️</button>
                         </div>
                     </div>
                 `;
             });
+
+            // ATUALIZAR EXIBIÇÃO DO RESUMO DE PAGAMENTOS
+            atualizarPainelValores('sum-pix', totalPix);
+            atualizarPainelValores('sum-credito-vista', totalCreditoVista);
+            atualizarPainelValores('sum-credito-parcelado', totalCreditoParcelado);
+            atualizarPainelValores('sum-debito', totalDebito);
+            atualizarPainelValores('sum-dinheiro', totalDinheiro);
+        }
+
+        function atualizarPainelValores(id, valor) {
+            const el = document.getElementById(id);
+            el.innerText = `R$ ${valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            if (valor > 0) {
+                el.classList.add('has-value');
+            } else {
+                el.classList.remove('has-value');
+            }
         }
     </script>
 </body>
