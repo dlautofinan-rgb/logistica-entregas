@@ -226,7 +226,7 @@
         }
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
         .config-group input, .config-group select {
-            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; height: 31px;
+            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; height: 31px; background: white;
         }
 
         .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
@@ -301,6 +301,18 @@
             </div>
             <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="f-ruas" required></div>
             <div class="form-group full-width"><label>Cidade:</label><input type="text" id="f-cidade" required></div>
+            
+            <div class="form-group full-width">
+                <label>💳 Forma de Pagamento:</label>
+                <select id="f-pagamento" required>
+                    <option value="PIX">PIX</option>
+                    <option value="Cartão de Crédito à Vista">Cartão de Crédito à Vista</option>
+                    <option value="Crédito Parcelado">Crédito Parcelado</option>
+                    <option value="Cartão de Débito">Cartão de Débito</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                </select>
+            </div>
+
             <div class="form-group full-width"><label>Observações:</label><textarea id="f-obs" rows="2"></textarea></div>
             
             <button type="submit" class="btn btn-submit">Adicionar à Rota</button>
@@ -341,6 +353,17 @@
                 <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="e-ruas" required></div>
                 <div class="form-group full-width"><label>Cidade:</label><input type="text" id="e-cidade" required></div>
                 
+                <div class="form-group full-width">
+                    <label>💳 Forma de Pagamento:</label>
+                    <select id="e-pagamento" required>
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão de Crédito à Vista">Cartão de Crédito à Vista</option>
+                        <option value="Crédito Parcelado">Crédito Parcelado</option>
+                        <option value="Cartão de Débito">Cartão de Débito</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                    </select>
+                </div>
+
                 <div class="form-group full-width">
                     <label>👤 Motorista Escalado:</label>
                     <select id="e-motorista">
@@ -427,11 +450,16 @@
             const lines = container.querySelectorAll('.peca-row');
             let list = [];
             lines.forEach(linha => {
-                const nome = linha.querySelector('.p-nome').value.trim();
-                const valor = linha.querySelector('.p-valor').value.trim();
+                const nome = inlineGet(linha, '.p-nome');
+                const valor = inlineGet(linha, '.p-valor');
                 if(nome) list.push({ nome, valor });
             });
             return list;
+        }
+
+        function inlineGet(linha, selector) {
+            const el = linha.querySelector(selector);
+            return el ? el.value.trim() : "";
         }
 
         function limparEConverterValor(valorTexto) {
@@ -491,6 +519,7 @@
             const pecasDigitadas = obterPecasForm('f-pecas-list');
             
             const dataFiltroSelecionada = document.getElementById('filter-date').value;
+            const pagamentoSelecionado = document.getElementById('f-pagamento').value;
 
             const novaRota = {
                 data: new Date().toISOString(),
@@ -502,6 +531,7 @@
                 rua: rua,
                 cidade: cidade,
                 contato: contato,
+                pagamento: pagamentoSelecionado,
                 sequencia: document.getElementById('f-sequencia').value ? parseInt(document.getElementById('f-sequencia').value) : "", 
                 obs: document.getElementById('f-obs').value,
                 concluida: false,
@@ -537,8 +567,9 @@
             document.getElementById('e-contato').value = rota.contato || "";
             document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
             document.getElementById('e-obs').value = rota.obs || "";
-
-            // CARREGA O MOTORISTA NO DROPDOWN DO MODAL DE EDIÇÃO
+            
+            // CARREGA A FORMA DE PAGAMENTO E MOTORISTA NO MODAL
+            document.getElementById('e-pagamento').value = rota.pagamento || "PIX";
             document.getElementById('e-motorista').value = rota.abaMotorista || "Carlos";
 
             const containerPecas = document.getElementById('e-pecas-list');
@@ -570,7 +601,8 @@
             const cidade = document.getElementById('e-cidade').value;
             const contato = document.getElementById('e-contato').value;
             const pecasEditadas = obterPecasForm('e-pecas-list');
-            const novoMotorista = document.getElementById('e-motorista').value; // PEGA O MOTORISTA DO MODAL
+            const pagamentoEditado = document.getElementById('e-pagamento').value;
+            const motoristaEditado = document.getElementById('e-motorista').value;
 
             const dadosAtualizados = {
                 cliente: nomeCliente,
@@ -579,8 +611,9 @@
                 rua: rua,
                 cidade: cidade,
                 contato: contato,
+                pagamento: pagamentoEditado,
+                abaMotorista: motoristaEditado,
                 sequencia: document.getElementById('e-sequencia').value ? parseInt(document.getElementById('e-sequencia').value) : "",
-                abaMotorista: novoMotorista, // ATUALIZA O MOTORISTA NO FIREBASE
                 obs: document.getElementById('e-obs').value
             };
 
@@ -593,7 +626,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
+            window.open(`https://maps.google.com/?q=${enderecoFormatado}`, '_blank');
         }
 
         window.abrirContato = function(telefone) {
@@ -668,6 +701,7 @@
                 const numSequencia = rota.sequencia !== undefined ? rota.sequencia : "";
                 const hSaida = rota.horaSaida || "";
                 const hChegada = rota.horaChegada || "";
+                const pagamento = rota.pagamento || "PIX";
 
                 let htmlPecas = "";
                 let valorTotalGeral = 0;
@@ -697,6 +731,7 @@
                             <p><strong>Lista de Peças:</strong></p>
                             <div class="card-pecas-list">${htmlPecas}</div>
                             <p><strong>Valor Total:</strong> R$ ${valorTotalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            <p><strong>Forma de Pagamento:</strong> 💳 <span style="font-weight: bold; color: var(--success);">${pagamento}</span></p>
                             <p><strong>Endereço:</strong> ${rota.rua}, ${rota.cidade}</p>
                             <p><strong>CEP:</strong> ${rota.cep}</p>
                             ${contatoComprador ? `<p><strong>Contato:</strong> ${contatoComprador}</p>` : ''}
@@ -716,7 +751,7 @@
                                 <div class="config-row">
                                     <div class="config-group">
                                         <label>👤 Mudar Motorista:</label>
-                                        <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)" style="width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; height: 31px; box-sizing: border-box; background: white;">
+                                        <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)">
                                             <option value="Carlos" ${rota.abaMotorista === 'Carlos' || !rota.abaMotorista ? 'selected' : ''}>Carlos</option>
                                             <option value="Luiz Marcelo" ${rota.abaMotorista === 'Luiz Marcelo' ? 'selected' : ''}>Luiz Marcelo</option>
                                         </select>
