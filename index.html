@@ -24,7 +24,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg);
             margin: 0;
-            padding: 12px 12px 180px 12px; /* Margem inferior aumentada para não cobrir o resumo fixo */
+            padding: 12px 12px 180px 12px; /* Margem inferior para não cobrir o resumo fixo */
             color: var(--text);
             box-sizing: border-box;
         }
@@ -481,6 +481,14 @@
                     </select>
                 </div>
 
+                <div class="form-group full-width">
+                    <label>👤 Motorista Escalado:</label>
+                    <select id="e-motorista">
+                        <option value="Carlos">Carlos</option>
+                        <option value="Luiz Marcelo">Luiz Marcelo</option>
+                    </select>
+                </div>
+
                 <div class="form-group full-width"><label>Observações:</label><textarea id="e-obs" rows="2"></textarea></div>
                 
                 <button type="submit" class="btn btn-submit" style="background-color: var(--success); width: 100%;">Salvar Alterações</button>
@@ -639,7 +647,7 @@
                 sequencia: document.getElementById('f-sequencia').value ? parseInt(document.getElementById('f-sequencia').value) : "", 
                 obs: document.getElementById('f-obs').value,
                 concluida: false,
-                devolvida: false, // Inicializa como não devolvida
+                devolvida: false,
                 horaSaida: "", 
                 horaChegada: "" 
             };
@@ -673,6 +681,9 @@
             document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
             document.getElementById('e-obs').value = rota.obs || "";
             document.getElementById('e-pagamento').value = rota.pagamento || "";
+            
+            // CARREGA O MOTORISTA ATUALMENTE ESCALADO NO SELECT DO MODAL
+            document.getElementById('e-motorista').value = rota.abaMotorista || "Carlos";
 
             const containerPecas = document.getElementById('e-pecas-list');
             containerPecas.innerHTML = "";
@@ -704,6 +715,7 @@
             const contato = document.getElementById('e-contato').value;
             const pecasEditadas = obterPecasForm('e-pecas-list');
             const pagamentoEditado = document.getElementById('e-pagamento').value;
+            const motoristaEditado = document.getElementById('e-motorista').value;
 
             const dadosAtualizados = {
                 cliente: nomeCliente,
@@ -713,6 +725,7 @@
                 cidade: cidade,
                 contato: contato,
                 pagamento: pagamentoEditado,
+                abaMotorista: motoristaEditado, // SALVA O MOTORISTA SELECIONADO NO EDITAR
                 sequencia: document.getElementById('e-sequencia').value ? parseInt(document.getElementById('e-sequencia').value) : "",
                 obs: document.getElementById('e-obs').value
             };
@@ -726,7 +739,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`http://maps.google.com/?q=${enderecoFormatado}`, '_blank');
+            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
         }
 
         window.abrirContato = function(telefone) {
@@ -933,3 +946,4 @@
     </script>
 </body>
 </html>
+  
