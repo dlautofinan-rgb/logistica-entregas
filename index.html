@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no">
     <title>Logística de Rotas</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -19,6 +19,7 @@
             --whatsapp: #25D366;
             --warning: #ffc107;
             --devolucao: #e67e22;
+            --pagamento: #9b59b6;
         }
 
         body {
@@ -149,6 +150,7 @@
             outline: none;
         }
 
+        /* Peças e Valores */
         .pecas-container {
             background: #f1f3f5;
             padding: 10px;
@@ -170,6 +172,30 @@
             margin-bottom: 6px;
             align-items: center;
         }
+
+        /* Pagamentos Múltiplos */
+        .pagamentos-container {
+            background: #faf5ff;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 1px solid #e9d5ff;
+        }
+        .pagamentos-container label {
+            font-weight: bold;
+            font-size: 12px;
+            color: #6b21a8;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .pagamento-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 6px;
+            margin-bottom: 6px;
+            align-items: center;
+        }
+
         .btn-mini {
             padding: 6px 10px;
             font-size: 11px;
@@ -179,7 +205,8 @@
             font-weight: bold;
         }
         .btn-add-peca { background-color: #6c757d; color: white; margin-bottom: 5px; }
-        .btn-remove-peca { background-color: var(--danger); color: white; padding: 10px;}
+        .btn-add-pagto { background-color: var(--pagamento); color: white; margin-bottom: 5px; }
+        .btn-remove-item { background-color: var(--danger); color: white; padding: 10px;}
 
         .autocomplete-suggestions {
             position: absolute;
@@ -236,7 +263,6 @@
         }
         .delivery-card.concluida .card-title { text-decoration: line-through; color: #777; }
         
-        /* Estilos do Estado Devolvido */
         .delivery-card.devolvida {
             border-left-color: var(--devolucao);
             background-color: #fdf6f0;
@@ -260,8 +286,13 @@
 
         .card-body { font-size: 13px; line-height: 1.5; color: #444; }
         .card-body p { margin: 4px 0; }
+        
         .card-pecas-list { background: #f8f9fa; border-radius: 6px; padding: 6px 10px; margin: 6px 0; border-left: 3px solid #dee2e6; }
         .card-pecas-list div { font-size: 12px; color: #555; display: flex; justify-content: space-between; }
+
+        .card-pagamentos-list { background: #faf5ff; border-radius: 6px; padding: 6px 10px; margin: 6px 0; border-left: 3px solid #d8b4fe; }
+        .card-pagamentos-list div { font-size: 12px; color: #6b21a8; display: flex; justify-content: space-between; }
+
         .obs-alert { background: #fff3cd; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-top: 5px !important; display: inline-block;}
 
         .driver-status-section {
@@ -271,7 +302,7 @@
             display: block; font-size: 11px; font-weight: bold; color: #495057; margin-bottom: 4px; text-transform: uppercase;
         }
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-        .config-group input {
+        .config-group input, .config-group select {
             width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box;
         }
 
@@ -351,6 +382,26 @@
                 </div>
             </div>
 
+            <div class="pagamentos-container">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label>Pagamentos:</label>
+                    <button type="button" class="btn-mini btn-add-pagto" onclick="adicionarLinhaPagamento('f-pagamentos-list')">➕ Add Pagamento</button>
+                </div>
+                <div id="f-pagamentos-list">
+                    <div class="pagamento-row">
+                        <select class="p-forma" required>
+                            <option value="PIX">PIX</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                            <option value="Faturado">Faturado</option>
+                        </select>
+                        <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
+                        <div style="width:34px"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-row">
                 <div class="form-group"><label>CEP:</label><input type="text" id="f-cep" required></div>
                 <div class="form-group"><label>Posição na Rota (Sequência):</label><input type="number" id="f-sequencia" placeholder="Ex: 1" min="1"></div>
@@ -388,6 +439,14 @@
                         <button type="button" class="btn-mini btn-add-peca" onclick="adicionarLinhaPeca('e-pecas-list')">➕ Add Peça</button>
                     </div>
                     <div id="e-pecas-list"></div>
+                </div>
+
+                <div class="pagamentos-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label>Pagamentos Múltiplos:</label>
+                        <button type="button" class="btn-mini btn-add-pagto" onclick="adicionarLinhaPagamento('e-pagamentos-list')">➕ Add Pagamento</button>
+                    </div>
+                    <div id="e-pagamentos-list"></div>
                 </div>
 
                 <div class="form-row">
@@ -456,6 +515,7 @@
             renderizarCards();
         }
 
+        // --- DINÂMICA DE PEÇAS ---
         window.adicionarLinhaPeca = function(containerId, nome = "", valor = "") {
             const container = document.getElementById(containerId);
             const div = document.createElement('div');
@@ -463,7 +523,7 @@
             div.innerHTML = `
                 <input type="text" placeholder="Nome da Peça" value="${nome}" required class="p-nome">
                 <input type="text" placeholder="Valor" value="${valor}" required class="p-valor">
-                <button type="button" class="btn-mini btn-remove-peca" onclick="this.parentElement.remove()">🗑️</button>
+                <button type="button" class="btn-mini btn-remove-item" onclick="this.parentElement.remove()">🗑️</button>
             `;
             container.appendChild(div);
         }
@@ -476,6 +536,36 @@
                 const nome = linha.querySelector('.p-nome').value.trim();
                 const valor = linha.querySelector('.p-valor').value.trim();
                 if(nome) list.push({ nome, valor });
+            });
+            return list;
+        }
+
+        // --- DINÂMICA DE PAGAMENTOS MULTIPLOS ---
+        window.adicionarLinhaPagamento = function(containerId, formaSelected = "PIX", valor = "") {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = 'pagamento-row';
+            
+            const options = ["PIX", "Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Faturado"]
+                .map(opt => `<option value="${opt}" ${opt === formaSelected ? 'selected' : ''}>${opt}</option>`)
+                .join("");
+
+            div.innerHTML = `
+                <select class="p-forma" required>${options}</select>
+                <input type="text" placeholder="Valor" value="${valor}" required class="p-valor-pagto">
+                <button type="button" class="btn-mini btn-remove-item" onclick="this.parentElement.remove()">🗑️</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function obterPagamentosForm(containerId) {
+            const container = document.getElementById(containerId);
+            const lines = container.querySelectorAll('.pagamento-row');
+            let list = [];
+            lines.forEach(linha => {
+                const forma = linha.querySelector('.p-forma').value;
+                const valor = linha.querySelector('.p-valor-pagto').value.trim();
+                if(forma) list.push({ forma, valor });
             });
             return list;
         }
@@ -534,8 +624,9 @@
             const rua = document.getElementById('f-ruas').value;
             const cidade = document.getElementById('f-cidade').value;
             const contato = document.getElementById('f-contato').value;
-            const pecasDigitadas = obterPecasForm('f-pecas-list');
             
+            const pecasDigitadas = obterPecasForm('f-pecas-list');
+            const pagamentosDigitados = obterPagamentosForm('f-pagamentos-list');
             const dataFiltroSelecionada = document.getElementById('filter-date').value;
 
             const novaRota = {
@@ -544,6 +635,7 @@
                 abaMotorista: document.getElementById('filter-driver').value,
                 cliente: nomeCliente,
                 pecas: pecasDigitadas,
+                pagamentos: pagamentosDigitados,
                 cep: cep,
                 rua: rua,
                 cidade: cidade,
@@ -569,7 +661,33 @@
                     <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
                     <div style="width:34px"></div>
                 </div>`;
+            document.getElementById('f-pagamentos-list').innerHTML = `
+                <div class="pagamento-row">
+                    <select class="p-forma" required>
+                        <option value="PIX">PIX</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Cartão de Débito">Cartão de Débito</option>
+                        <option value="Faturado">Faturado</option>
+                    </select>
+                    <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
+                    <div style="width:34px"></div>
+                </div>`;
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        window.abrirNoGps = function(rua, city) {
+            const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
+            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
+        }
+
+        window.abrirContato = function(telefone) {
+            const apenasNumeros = telefone.replace(/\D/g, "");
+            if(apenasNumeros.length >= 10) {
+                window.open("https://wa.me/55" + apenasNumeros, '_blank');
+            } else {
+                window.open("tel:" + apenasNumeros, '_self');
+            }
         }
 
         window.abrirModalEditar = function(id) {
@@ -585,15 +703,24 @@
             document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
             document.getElementById('e-obs').value = rota.obs || "";
 
+            // Renderizar Peças
             const containerPecas = document.getElementById('e-pecas-list');
             containerPecas.innerHTML = "";
-            
             if(rota.pecas && rota.pecas.length > 0) {
                 rota.pecas.forEach(p => window.adicionarLinhaPeca('e-pecas-list', p.nome, p.valor));
             } else if (rota.peca) {
                 window.adicionarLinhaPeca('e-pecas-list', rota.peca, rota.valor);
             } else {
                 window.adicionarLinhaPeca('e-pecas-list');
+            }
+
+            // Renderizar Pagamentos
+            const containerPagamentos = document.getElementById('e-pagamentos-list');
+            containerPagamentos.innerHTML = "";
+            if(rota.pagamentos && rota.pagamentos.length > 0) {
+                rota.pagamentos.forEach(p => window.adicionarLinhaPagamento('e-pagamentos-list', p.forma, p.valor));
+            } else {
+                window.adicionarLinhaPagamento('e-pagamentos-list');
             }
 
             document.getElementById('modal-editar-entrega').style.display = "flex";
@@ -613,11 +740,14 @@
             const rua = document.getElementById('e-ruas').value;
             const cidade = document.getElementById('e-cidade').value;
             const contato = document.getElementById('e-contato').value;
+            
             const pecasEditadas = obterPecasForm('e-pecas-list');
+            const pagamentosEditados = obterPagamentosForm('e-pagamentos-list');
 
             const dadosAtualizados = {
                 cliente: nomeCliente,
                 pecas: pecasEditadas,
+                pagamentos: pagamentosEditados,
                 cep: cep,
                 rua: rua,
                 cidade: cidade,
@@ -633,20 +763,6 @@
             fecharModalEditar();
         }
 
-        window.abrirNoGps = function(rua, city) {
-            const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
-        }
-
-        window.abrirContato = function(telefone) {
-            const apenasNumeros = telefone.replace(/\D/g, "");
-            if(apenasNumeros.length >= 10) {
-                window.open("https://wa.me/55" + apenasNumeros, '_blank');
-            } else {
-                window.open("tel:" + apenasNumeros, '_self');
-            }
-        }
-
         window.atualizarDadoEntrega = function(id, campo, valor) {
             const dadosAtualizar = {};
             dadosAtualizar[campo] = campo === 'sequencia' && valor !== "" ? parseInt(valor) : valor;
@@ -659,7 +775,6 @@
                 const novoEstado = !rota.concluida;
                 const atualizacoes = { concluida: novoEstado };
                 
-                // Se concluído, desmarca a devolução automaticamente
                 if(novoEstado) {
                     atualizacoes.devolvida = false;
                     if(!rota.horaChegada) {
@@ -676,7 +791,6 @@
                 const novoEstado = !rota.devolvida;
                 const atualizacoes = { devolvida: novoEstado };
                 
-                // Se marcado como devolvida, desmarca a conclusão automaticamente
                 if(novoEstado) {
                     atualizacoes.concluida = false;
                 }
@@ -731,7 +845,7 @@
                 } catch (error) {
                     alert("Arquivo de backup inválido ou corrompido.");
                 }
-                event.target.value = ""; // Reseta o input
+                event.target.value = ""; 
             };
             leitor.readAsText(arquivo);
         }
@@ -773,7 +887,6 @@
             rotasFiltradas.forEach(rota => {
                 const dataFormatada = formatarDataHoraCard(rota.data);
                 
-                // Determina classe dinâmica baseada no estado
                 let classeEstado = '';
                 if (rota.concluida) {
                     classeEstado = 'concluida';
@@ -789,6 +902,7 @@
                 const hSaida = rota.horaSaida || "";
                 const hChegada = rota.horaChegada || "";
 
+                // Processar Peças
                 let htmlPecas = "";
                 let valorTotalGeral = 0;
 
@@ -804,6 +918,18 @@
                     valorTotalGeral = valNum;
                 }
 
+                // Processar Pagamentos Múltiplos
+                let htmlPagamentos = "";
+                let totalPago = 0;
+
+                if (rota.pagamentos && rota.pagamentos.length > 0) {
+                    rota.pagamentos.forEach(pag => {
+                        const valNum = limparEConverterValor(pag.valor);
+                        htmlPagamentos += `<div><span>💳 ${pag.forma}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
+                        totalPago += valNum;
+                    });
+                }
+
                 container.innerHTML += `
                     <div class="delivery-card ${classeEstado}">
                         <div class="card-header">
@@ -816,7 +942,14 @@
                         <div class="card-body">
                             <p><strong>Lista de Peças:</strong></p>
                             <div class="card-pecas-list">${htmlPecas}</div>
-                            <p><strong>Valor Total:</strong> R$ ${valorTotalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            <p><strong>Valor Total das Peças:</strong> R$ ${valorTotalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            
+                            ${htmlPagamentos ? `
+                            <p><strong>Formas de Pagamento:</strong></p>
+                            <div class="card-pagamentos-list">${htmlPagamentos}</div>
+                            <p><strong>Total Pago:</strong> R$ ${totalPago.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            ` : ''}
+
                             <p><strong>Endereço:</strong> ${rota.rua}, ${rota.cidade}</p>
                             <p><strong>CEP:</strong> ${rota.cep}</p>
                             ${contatoComprador ? `<p><strong>Contato:</strong> ${contatoComprador}</p>` : ''}
