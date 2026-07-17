@@ -13,19 +13,19 @@
             --success: #28a745;
             --danger: #dc3545;
             --info: #17a2b8;
-            --warning: #ffc107;
             --bg: #f8f9fa;
             --card-bg: #ffffff;
             --text: #333333;
             --whatsapp: #25D366;
-            --border: #ddd;
+            --warning: #ffc107;
+            --devolucao: #e67e22;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg);
             margin: 0;
-            padding: 12px 12px 180px 12px; /* Espaço para a barra de pagamentos fixa no celular */
+            padding: 12px;
             color: var(--text);
             box-sizing: border-box;
         }
@@ -36,6 +36,43 @@
             margin: 10px 0 15px 0;
             color: #111; 
         }
+
+        /* Painel de Backup */
+        .backup-container {
+            background-color: var(--card-bg);
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px dashed #ccc;
+        }
+        .backup-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin: 0;
+            color: #555;
+        }
+        .backup-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-backup {
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-exportar { background-color: var(--primary); color: white; }
+        .btn-importar { background-color: var(--info); color: white; }
         
         #map {
             width: 100%;
@@ -56,7 +93,7 @@
         .select-custom, .input-date-custom {
             width: 100%;
             padding: 12px;
-            border: 1px solid var(--border);
+            border: 1px solid #ddd;
             border-radius: 8px;
             font-size: 14px;
             background-color: white;
@@ -100,7 +137,7 @@
         .form-group input, .form-group textarea, .form-group select {
             width: 100%; 
             padding: 10px; 
-            border: 1px solid var(--border); 
+            border: 1px solid #ddd; 
             border-radius: 8px; 
             box-sizing: border-box; 
             font-size: 14px;
@@ -142,7 +179,7 @@
             font-weight: bold;
         }
         .btn-add-peca { background-color: #6c757d; color: white; margin-bottom: 5px; }
-        .btn-remove-peca { background-color: var(--danger); color: white; padding: 10px; border-radius: 6px; border: none; cursor: pointer; }
+        .btn-remove-peca { background-color: var(--danger); color: white; padding: 10px;}
 
         .autocomplete-suggestions {
             position: absolute;
@@ -198,6 +235,13 @@
             background-color: #f9f9f9;
         }
         .delivery-card.concluida .card-title { text-decoration: line-through; color: #777; }
+        
+        /* Estilos do Estado Devolvido */
+        .delivery-card.devolvida {
+            border-left-color: var(--devolucao);
+            background-color: #fdf6f0;
+        }
+        .delivery-card.devolvida .card-title { text-decoration: line-through; color: var(--devolucao); }
 
         .card-header {
             display: flex;
@@ -237,8 +281,9 @@
         }
         .btn-gps { background-color: var(--info); color: white; }
         .btn-whatsapp { background-color: var(--whatsapp); color: white; }
-        .btn-edit { background-color: #ffc107; color: #212529; }
+        .btn-edit { background-color: var(--warning); color: #212529; }
         .btn-check { background-color: var(--success); color: white; }
+        .btn-devolucao { background-color: var(--devolucao); color: white; }
         .btn-delete { background-color: #f8d7da; color: var(--danger); flex: 0 0 35px; min-width: auto; }
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
@@ -252,73 +297,20 @@
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .modal-header h3 { margin: 0; font-size: 18px; }
         .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
-
-        /* PAINEL FIXO DE RESUMO DE PAGAMENTOS */
-        .payments-summary-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #ffffff;
-            border-top: 4px solid var(--primary);
-            box-shadow: 0 -10px 15px -3px rgba(0, 0, 0, 0.1);
-            padding: 12px 15px;
-            z-index: 1000;
-            box-sizing: border-box;
-        }
-        .summary-title {
-            font-size: 11px;
-            font-weight: 800;
-            color: #555;
-            margin: 0 0 8px 0;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 0.7px;
-        }
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 6px;
-            text-align: center;
-        }
-        .summary-box {
-            background: #f9fafb;
-            padding: 6px 4px;
-            border-radius: 6px;
-            border: 1px solid #eee;
-        }
-        .summary-label {
-            font-size: 9px;
-            color: #666;
-            font-weight: bold;
-            display: block;
-            text-transform: uppercase;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .summary-value {
-            font-size: 11px;
-            font-weight: 800;
-            color: #333;
-        }
-        .summary-value.has-value {
-            color: var(--success);
-        }
-
-        @media (max-width: 600px) {
-            .summary-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            body {
-                padding-bottom: 220px;
-            }
-        }
     </style>
 </head>
 <body>
 
     <h1>📦 Logística de Entregas</h1>
+
+    <div class="backup-container">
+        <span class="backup-title">💾 Backup de Segurança:</span>
+        <div class="backup-buttons">
+            <button class="btn-backup btn-exportar" onclick="exportarBackup()">📥 Exportar</button>
+            <button class="btn-backup btn-importar" onclick="document.getElementById('import-file').click()">📤 Importar</button>
+            <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importarBackup(event)">
+        </div>
+    </div>
 
     <div class="controls-container">
         <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltros()">
@@ -359,26 +351,6 @@
                 </div>
             </div>
 
-            <div class="pecas-container" style="background-color: #eaf2f8; border-color: #b9d6f2;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label style="color: #2c3e50;">💳 Formas de Pagamento:</label>
-                    <button type="button" class="btn-mini btn-add-peca" style="background-color: #2980b9;" onclick="adicionarLinhaPagamento('f-pagamentos-list')">➕ Add Pagamento</button>
-                </div>
-                <div id="f-pagamentos-list">
-                    <div class="peca-row">
-                        <select class="p-metodo" required>
-                            <option value="PIX">PIX</option>
-                            <option value="Cartão de Crédito à Vista">Cartão de Crédito à Vista</option>
-                            <option value="Crédito Parcelado">Crédito Parcelado</option>
-                            <option value="Cartão de Débito">Cartão de Débito</option>
-                            <option value="Dinheiro">Dinheiro</option>
-                        </select>
-                        <input type="text" placeholder="Valor do Pagamento" required class="p-pag-valor">
-                        <div style="width:34px"></div>
-                    </div>
-                </div>
-            </div>
-
             <div class="form-row">
                 <div class="form-group"><label>CEP:</label><input type="text" id="f-cep" required></div>
                 <div class="form-group"><label>Posição na Rota (Sequência):</label><input type="number" id="f-sequencia" placeholder="Ex: 1" min="1"></div>
@@ -396,32 +368,6 @@
     <div class="lista-entregas" id="container-entregas"></div>
 
     <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
-
-    <div class="payments-summary-bar">
-        <div class="summary-title">💰 Resumo Financeiro Diário</div>
-        <div class="summary-grid">
-            <div class="summary-box">
-                <span class="summary-label">Pix</span>
-                <span class="summary-value" id="sum-pix">R$ 0,00</span>
-            </div>
-            <div class="summary-box">
-                <span class="summary-label">Créd. Vista</span>
-                <span class="summary-value" id="sum-credito-vista">R$ 0,00</span>
-            </div>
-            <div class="summary-box">
-                <span class="summary-label">Créd. Parc.</span>
-                <span class="summary-value" id="sum-credito-parcelado">R$ 0,00</span>
-            </div>
-            <div class="summary-box">
-                <span class="summary-label">Débito</span>
-                <span class="summary-value" id="sum-debito">R$ 0,00</span>
-            </div>
-            <div class="summary-box">
-                <span class="summary-label">Dinheiro</span>
-                <span class="summary-value" id="sum-dinheiro">R$ 0,00</span>
-            </div>
-        </div>
-    </div>
 
     <div id="modal-editar-entrega" class="modal-edit">
         <div class="modal-content">
@@ -444,14 +390,6 @@
                     <div id="e-pecas-list"></div>
                 </div>
 
-                <div class="pecas-container" style="background-color: #eaf2f8; border-color: #b9d6f2;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label style="color: #2c3e50;">💳 Formas de Pagamento:</label>
-                        <button type="button" class="btn-mini btn-add-peca" style="background-color: #2980b9;" onclick="adicionarLinhaPagamento('e-pagamentos-list')">➕ Add Pagamento</button>
-                    </div>
-                    <div id="e-pagamentos-list"></div>
-                </div>
-
                 <div class="form-row">
                     <div class="form-group"><label>CEP:</label><input type="text" id="e-cep" required></div>
                     <div class="form-group"><label>Sequência da Rota:</label><input type="number" id="e-sequencia" min="1"></div>
@@ -469,7 +407,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCuFiZ4H9u3-od3lVXy2BXLiPHmnQRw1Lw",
@@ -518,7 +456,6 @@
             renderizarCards();
         }
 
-        // Adicionar Linhas Dinâmicas de Peças e Pagamentos (Novo!)
         window.adicionarLinhaPeca = function(containerId, nome = "", valor = "") {
             const container = document.getElementById(containerId);
             const div = document.createElement('div');
@@ -526,25 +463,7 @@
             div.innerHTML = `
                 <input type="text" placeholder="Nome da Peça" value="${nome}" required class="p-nome">
                 <input type="text" placeholder="Valor" value="${valor}" required class="p-valor">
-                <button type="button" class="btn-remove-peca" onclick="this.parentElement.remove()">🗑️</button>
-            `;
-            container.appendChild(div);
-        }
-
-        window.adicionarLinhaPagamento = function(containerId, metodo = "PIX", valor = "") {
-            const container = document.getElementById(containerId);
-            const div = document.createElement('div');
-            div.className = 'peca-row';
-            div.innerHTML = `
-                <select class="p-metodo" required>
-                    <option value="PIX" ${metodo === 'PIX' ? 'selected' : ''}>PIX</option>
-                    <option value="Cartão de Crédito à Vista" ${metodo === 'Cartão de Crédito à Vista' ? 'selected' : ''}>Cartão de Crédito à Vista</option>
-                    <option value="Crédito Parcelado" ${metodo === 'Crédito Parcelado' ? 'selected' : ''}>Crédito Parcelado</option>
-                    <option value="Cartão de Débito" ${metodo === 'Cartão de Débito' ? 'selected' : ''}>Cartão de Débito</option>
-                    <option value="Dinheiro" ${metodo === 'Dinheiro' ? 'selected' : ''}>Dinheiro</option>
-                </select>
-                <input type="text" placeholder="Valor (R$)" value="${valor}" required class="p-pag-valor">
-                <button type="button" class="btn-remove-peca" onclick="this.parentElement.remove()">🗑️</button>
+                <button type="button" class="btn-mini btn-remove-peca" onclick="this.parentElement.remove()">🗑️</button>
             `;
             container.appendChild(div);
         }
@@ -554,29 +473,9 @@
             const lines = container.querySelectorAll('.peca-row');
             let list = [];
             lines.forEach(linha => {
-                const nomeInput = linha.querySelector('.p-nome');
-                const valorInput = linha.querySelector('.p-valor');
-                if(nomeInput && valorInput) {
-                    const nome = nomeInput.value.trim();
-                    const valor = valorInput.value.trim();
-                    if(nome) list.push({ nome, valor });
-                }
-            });
-            return list;
-        }
-
-        function obterPagamentosForm(containerId) {
-            const container = document.getElementById(containerId);
-            const lines = container.querySelectorAll('.peca-row');
-            let list = [];
-            lines.forEach(linha => {
-                const metodoSelect = linha.querySelector('.p-metodo');
-                const valorInput = linha.querySelector('.p-pag-valor');
-                if (metodoSelect && valorInput) {
-                    const metodo = metodoSelect.value;
-                    const valor = valorInput.value.trim();
-                    if (metodo) list.push({ metodo, valor });
-                }
+                const nome = linha.querySelector('.p-nome').value.trim();
+                const valor = linha.querySelector('.p-valor').value.trim();
+                if(nome) list.push({ nome, valor });
             });
             return list;
         }
@@ -636,7 +535,6 @@
             const cidade = document.getElementById('f-cidade').value;
             const contato = document.getElementById('f-contato').value;
             const pecasDigitadas = obterPecasForm('f-pecas-list');
-            const pagamentosDigitados = obterPagamentosForm('f-pagamentos-list');
             
             const dataFiltroSelecionada = document.getElementById('filter-date').value;
 
@@ -646,7 +544,6 @@
                 abaMotorista: document.getElementById('filter-driver').value,
                 cliente: nomeCliente,
                 pecas: pecasDigitadas,
-                pagamentos: pagamentosDigitados,
                 cep: cep,
                 rua: rua,
                 cidade: cidade,
@@ -654,6 +551,7 @@
                 sequencia: document.getElementById('f-sequencia').value ? parseInt(document.getElementById('f-sequencia').value) : "", 
                 obs: document.getElementById('f-obs').value,
                 concluida: false,
+                devolvida: false,
                 horaSaida: "", 
                 horaChegada: "" 
             };
@@ -669,18 +567,6 @@
                 <div class="peca-row">
                     <input type="text" placeholder="Nome da Peça" required class="p-nome">
                     <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
-                    <div style="width:34px"></div>
-                </div>`;
-            document.getElementById('f-pagamentos-list').innerHTML = `
-                <div class="peca-row">
-                    <select class="p-metodo" required>
-                        <option value="PIX">PIX</option>
-                        <option value="Cartão de Crédito à Vista">Cartão de Crédito à Vista</option>
-                        <option value="Crédito Parcelado">Crédito Parcelado</option>
-                        <option value="Cartão de Débito">Cartão de Débito</option>
-                        <option value="Dinheiro">Dinheiro</option>
-                    </select>
-                    <input type="text" placeholder="Valor do Pagamento" required class="p-pag-valor">
                     <div style="width:34px"></div>
                 </div>`;
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -701,23 +587,13 @@
 
             const containerPecas = document.getElementById('e-pecas-list');
             containerPecas.innerHTML = "";
+            
             if(rota.pecas && rota.pecas.length > 0) {
                 rota.pecas.forEach(p => window.adicionarLinhaPeca('e-pecas-list', p.nome, p.valor));
             } else if (rota.peca) {
                 window.adicionarLinhaPeca('e-pecas-list', rota.peca, rota.valor);
             } else {
                 window.adicionarLinhaPeca('e-pecas-list');
-            }
-
-            // Renderizar múltiplos pagamentos no Modal (Novo!)
-            const containerPagamentos = document.getElementById('e-pagamentos-list');
-            containerPagamentos.innerHTML = "";
-            if (rota.pagamentos && rota.pagamentos.length > 0) {
-                rota.pagamentos.forEach(p => window.adicionarLinhaPagamento('e-pagamentos-list', p.metodo, p.valor));
-            } else if (rota.pagamento) { // Compatibilidade com dados antigos que usavam pagamento fixo
-                window.adicionarLinhaPagamento('e-pagamentos-list', rota.pagamento, rota.valor || "");
-            } else {
-                window.adicionarLinhaPagamento('e-pagamentos-list');
             }
 
             document.getElementById('modal-editar-entrega').style.display = "flex";
@@ -738,12 +614,10 @@
             const cidade = document.getElementById('e-cidade').value;
             const contato = document.getElementById('e-contato').value;
             const pecasEditadas = obterPecasForm('e-pecas-list');
-            const pagamentosEditados = obterPagamentosForm('e-pagamentos-list');
 
             const dadosAtualizados = {
                 cliente: nomeCliente,
                 pecas: pecasEditadas,
-                pagamentos: pagamentosEditados,
                 cep: cep,
                 rua: rua,
                 cidade: cidade,
@@ -784,15 +658,83 @@
             if(rota) { 
                 const novoEstado = !rota.concluida;
                 const atualizacoes = { concluida: novoEstado };
-                if(novoEstado && !rota.horaChegada) {
-                    atualizacoes.horaChegada = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                
+                // Se concluído, desmarca a devolução automaticamente
+                if(novoEstado) {
+                    atualizacoes.devolvida = false;
+                    if(!rota.horaChegada) {
+                        atualizacoes.horaChegada = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                    }
                 }
                 update(ref(db, 'entregas/' + id), atualizacoes);
             } 
         }
 
+        window.alternarDevolucao = function(id) {
+            const rota = rotas.find(r => r.id === id);
+            if(rota) {
+                const novoEstado = !rota.devolvida;
+                const atualizacoes = { devolvida: novoEstado };
+                
+                // Se marcado como devolvida, desmarca a conclusão automaticamente
+                if(novoEstado) {
+                    atualizacoes.concluida = false;
+                }
+                update(ref(db, 'entregas/' + id), atualizacoes);
+            }
+        }
+
         window.excluirRota = function(id) { if (confirm("Excluir esta entrega?")) set(ref(db, 'entregas/' + id), null); }
         window.excluirTudo = function() { if (confirm("Apagar todas as entregas desta visão?")) set(rotasRef, null); }
+
+        // --- SISTEMA DE BACKUP ---
+        window.exportarBackup = async function() {
+            try {
+                const databaseRef = ref(db);
+                const snapshot = await get(databaseRef);
+                if (snapshot.exists()) {
+                    const dadosCompletos = snapshot.val();
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dadosCompletos, null, 2));
+                    const downloadAnchor = document.createElement('a');
+                    
+                    const dataHoje = new Date().toISOString().split('T')[0];
+                    downloadAnchor.setAttribute("href", dataStr);
+                    downloadAnchor.setAttribute("download", `backup_logistica_${dataHoje}.json`);
+                    document.body.appendChild(downloadAnchor);
+                    downloadAnchor.click();
+                    downloadAnchor.remove();
+                } else {
+                    alert("Nenhum dado encontrado para exportação.");
+                }
+            } catch (error) {
+                console.error("Erro ao exportar backup: ", error);
+                alert("Erro ao gerar backup de segurança.");
+            }
+        }
+
+        window.importarBackup = function(event) {
+            const arquivo = event.target.files[0];
+            if (!arquivo) return;
+
+            const leitor = new FileReader();
+            leitor.onload = function(e) {
+                try {
+                    const dadosImportados = JSON.parse(e.target.result);
+                    if (confirm("Atenção! Isso substituirá os dados atuais pelos dados do arquivo. Deseja prosseguir?")) {
+                        set(ref(db), dadosImportados)
+                            .then(() => alert("Backup importado e restaurado com sucesso!"))
+                            .catch(err => {
+                                console.error(err);
+                                alert("Erro ao salvar dados restaurados no Firebase.");
+                            });
+                    }
+                } catch (error) {
+                    alert("Arquivo de backup inválido ou corrompido.");
+                }
+                event.target.value = ""; // Reseta o input
+            };
+            leitor.readAsText(arquivo);
+        }
 
         function renderizarCards() {
             const container = document.getElementById('container-entregas');
@@ -823,33 +765,30 @@
             });
 
             totalBadge.innerText = `Total: ${rotasFiltradas.length} entrega(s)`;
-
-            let sumPix = 0;
-            let sumCreditoVista = 0;
-            let sumCreditoParcelado = 0;
-            let sumDebito = 0;
-            let sumDinheiro = 0;
-
             if (rotasFiltradas.length === 0) {
                 container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma rota pendente para este dia.</p>";
-                atualizarPainelValores('sum-pix', 0);
-                atualizarPainelValores('sum-credito-vista', 0);
-                atualizarPainelValores('sum-credito-parcelado', 0);
-                atualizarPainelValores('sum-debito', 0);
-                atualizarPainelValores('sum-dinheiro', 0);
                 return;
             }
 
             rotasFiltradas.forEach(rota => {
                 const dataFormatada = formatarDataHoraCard(rota.data);
-                const classeConcluida = rota.concluida ? 'concluida' : '';
+                
+                // Determina classe dinâmica baseada no estado
+                let classeEstado = '';
+                if (rota.concluida) {
+                    classeEstado = 'concluida';
+                } else if (rota.devolvida) {
+                    classeEstado = 'devolvida';
+                }
+
                 const textoBotaoConcluir = rota.concluida ? '↩️ Refazer' : '✅ Concluir';
+                const textoBotaoDevolucao = rota.devolvida ? '↩️ Pendente' : '↩️ Devolução';
+                
                 const contatoComprador = rota.contato || "";
                 const numSequencia = rota.sequencia !== undefined ? rota.sequencia : "";
                 const hSaida = rota.horaSaida || "";
                 const hChegada = rota.horaChegada || "";
 
-                // Render das Peças
                 let htmlPecas = "";
                 let valorTotalGeral = 0;
 
@@ -865,35 +804,8 @@
                     valorTotalGeral = valNum;
                 }
 
-                // Render e Cálculo de Múltiplos Pagamentos (Novo!)
-                let htmlPagamentos = "";
-                if (rota.pagamentos && rota.pagamentos.length > 0) {
-                    rota.pagamentos.forEach(pag => {
-                        const valPag = limparEConverterValor(pag.valor);
-                        htmlPagamentos += `<div><span>💳 ${pag.metodo}</span> <span style="color: var(--success); font-weight: bold;">R$ ${valPag.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
-                        
-                        // Somatórios Diários do Painel
-                        if (pag.metodo === "PIX") sumPix += valPag;
-                        else if (pag.metodo === "Cartão de Crédito à Vista") sumCreditoVista += valPag;
-                        else if (pag.metodo === "Crédito Parcelado") sumCreditoParcelado += valPag;
-                        else if (pag.metodo === "Cartão de Débito") sumDebito += valPag;
-                        else if (pag.metodo === "Dinheiro") sumDinheiro += valPag;
-                    });
-                } else if (rota.pagamento) { // Compatibilidade para dados antigos
-                    const valPag = valorTotalGeral;
-                    htmlPagamentos += `<div><span>💳 ${rota.pagamento}</span> <span style="color: var(--success); font-weight: bold;">R$ ${valPag.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
-                    
-                    if (rota.pagamento === "PIX") sumPix += valPag;
-                    else if (rota.pagamento === "Cartão de Crédito à Vista") sumCreditoVista += valPag;
-                    else if (rota.pagamento === "Crédito Parcelado") sumCreditoParcelado += valPag;
-                    else if (rota.pagamento === "Cartão de Débito") sumDebito += valPag;
-                    else if (rota.pagamento === "Dinheiro") sumDinheiro += valPag;
-                } else {
-                    htmlPagamentos = `<div style="color: #999; font-style: italic;">Nenhum pagamento registrado</div>`;
-                }
-
                 container.innerHTML += `
-                    <div class="delivery-card ${classeConcluida}">
+                    <div class="delivery-card ${classeEstado}">
                         <div class="card-header">
                             <h4 class="card-title">${rota.cliente}</h4>
                             <div class="badges-wrapper">
@@ -904,11 +816,7 @@
                         <div class="card-body">
                             <p><strong>Lista de Peças:</strong></p>
                             <div class="card-pecas-list">${htmlPecas}</div>
-                            
-                            <p><strong>Formas de Pagamento:</strong></p>
-                            <div class="card-pecas-list" style="background-color: #f4f9fd; border-left-color: #3498db;">${htmlPagamentos}</div>
-
-                            <p><strong>Valor Total das Peças:</strong> R$ ${valorTotalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            <p><strong>Valor Total:</strong> R$ ${valorTotalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                             <p><strong>Endereço:</strong> ${rota.rua}, ${rota.cidade}</p>
                             <p><strong>CEP:</strong> ${rota.cep}</p>
                             ${contatoComprador ? `<p><strong>Contato:</strong> ${contatoComprador}</p>` : ''}
@@ -938,30 +846,12 @@
                             ${contatoComprador ? `<button class="btn-action btn-whatsapp" onclick="abrirContato('${contatoComprador}')">💬 Contato</button>` : ''}
                             <button class="btn-action btn-edit" onclick="abrirModalEditar('${rota.id}')">✍️ Editar</button>
                             <button class="btn-action btn-check" onclick="alternarConclusao('${rota.id}')">${textoBotaoConcluir}</button>
+                            <button class="btn-action btn-devolucao" onclick="alternarDevolucao('${rota.id}')">${textoBotaoDevolucao}</button>
                             <button class="btn-action btn-delete" onclick="excluirRota('${rota.id}')">🗑️</button>
                         </div>
                     </div>
                 `;
             });
-
-            // Atualiza barra de totais diários
-            atualizarPainelValores('sum-pix', sumPix);
-            atualizarPainelValores('sum-credito-vista', sumCreditoVista);
-            atualizarPainelValores('sum-credito-parcelado', sumCreditoParcelado);
-            atualizarPainelValores('sum-debito', sumDebito);
-            atualizarPainelValores('sum-dinheiro', sumDinheiro);
-        }
-
-        function atualizarPainelValores(id, valor) {
-            const el = document.getElementById(id);
-            if(el) {
-                el.innerText = `R$ ${valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                if (valor > 0) {
-                    el.classList.add('has-value');
-                } else {
-                    el.classList.remove('has-value');
-                }
-            }
         }
     </script>
 </body>
