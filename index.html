@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Logística de Rotas</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -319,6 +319,48 @@
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
 
+        /* Estilo do Painel de Resumo de Pagamentos Abaixo */
+        .painel-pagamentos-resumo {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid #e9d5ff;
+        }
+        .painel-pagamentos-resumo h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 16px;
+            color: #6b21a8;
+            border-bottom: 2px solid #e9d5ff;
+            padding-bottom: 6px;
+        }
+        .resumo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .resumo-item {
+            background-color: #faf5ff;
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 4px solid var(--pagamento);
+        }
+        .resumo-item-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #6b21a8;
+            text-transform: uppercase;
+        }
+        .resumo-item-valor {
+            font-size: 16px;
+            font-weight: 800;
+            color: #222;
+            margin-top: 2px;
+        }
+
         .modal-edit {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;
         }
@@ -334,6 +376,7 @@
 
     <h1>📦 Logística de Entregas</h1>
 
+    <!-- Painel de Backups e Salvamentos -->
     <div class="backup-container">
         <span class="backup-title">💾 Backup de Segurança:</span>
         <div class="backup-buttons">
@@ -368,6 +411,7 @@
                 </div>
             </div>
 
+            <!-- Seção de Peças -->
             <div class="pecas-container">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <label>Peças e Valores:</label>
@@ -382,6 +426,7 @@
                 </div>
             </div>
 
+            <!-- Seção de Pagamentos Múltiplos -->
             <div class="pagamentos-container">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <label>Pagamentos:</label>
@@ -418,8 +463,36 @@
 
     <div class="lista-entregas" id="container-entregas"></div>
 
+    <!-- PAINEL DE PAGAMENTOS ABAIXO -->
+    <div class="painel-pagamentos-resumo">
+        <h3>💰 Painel de Pagamentos do Dia</h3>
+        <div class="resumo-grid" id="painel-resumo-pagamentos">
+            <div class="resumo-item">
+                <div class="resumo-item-label">PIX</div>
+                <div class="resumo-item-valor" id="resumo-pix">R$ 0,00</div>
+            </div>
+            <div class="resumo-item">
+                <div class="resumo-item-label">Dinheiro</div>
+                <div class="resumo-item-valor" id="resumo-dinheiro">R$ 0,00</div>
+            </div>
+            <div class="resumo-item">
+                <div class="resumo-item-label">Crédito</div>
+                <div class="resumo-item-valor" id="resumo-credito">R$ 0,00</div>
+            </div>
+            <div class="resumo-item">
+                <div class="resumo-item-label">Débito</div>
+                <div class="resumo-item-valor" id="resumo-debito">R$ 0,00</div>
+            </div>
+            <div class="resumo-item" style="grid-column: span 2; background-color: #f5f3ff; border-left-color: #8b5cf6;">
+                <div class="resumo-item-label" style="color: #7c3aed;">Total Geral Arrecadado</div>
+                <div class="resumo-item-valor" id="resumo-total-geral" style="font-size: 20px; color: #5b21b6;">R$ 0,00</div>
+            </div>
+        </div>
+    </div>
+
     <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
 
+    <!-- Modal Editar Entrega -->
     <div id="modal-editar-entrega" class="modal-edit">
         <div class="modal-content">
             <div class="modal-header">
@@ -433,6 +506,7 @@
                     <div class="form-group"><label>Contato:</label><input type="text" id="e-contato"></div>
                 </div>
 
+                <!-- Peças Editar -->
                 <div class="pecas-container">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <label>Peças e Valores:</label>
@@ -441,6 +515,7 @@
                     <div id="e-pecas-list"></div>
                 </div>
 
+                <!-- Pagamentos Editar -->
                 <div class="pagamentos-container">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <label>Pagamentos Múltiplos:</label>
@@ -879,8 +954,17 @@
             });
 
             totalBadge.innerText = `Total: ${rotasFiltradas.length} entrega(s)`;
+            
+            // Variáveis para somar os valores do Painel de Resumo de Pagamentos
+            let somaPix = 0;
+            let somaDinheiro = 0;
+            let somaCredito = 0;
+            let somaDebito = 0;
+            let somaTotalGeral = 0;
+
             if (rotasFiltradas.length === 0) {
                 container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma rota pendente para este dia.</p>";
+                atualizarPainelResumo(0, 0, 0, 0, 0);
                 return;
             }
 
@@ -927,6 +1011,15 @@
                         const valNum = limparEConverterValor(pag.valor);
                         htmlPagamentos += `<div><span>💳 ${pag.forma}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
                         totalPago += valNum;
+
+                        // Se a entrega NÃO estiver marcada como Devolvida, somamos ao Painel de Resumos
+                        if (!rota.devolvida) {
+                            if (pag.forma === "PIX") somaPix += valNum;
+                            else if (pag.forma === "Dinheiro") somaDinheiro += valNum;
+                            else if (pag.forma === "Cartão de Crédito") somaCredito += valNum;
+                            else if (pag.forma === "Cartão de Débito") somaDebito += valNum;
+                            somaTotalGeral += valNum;
+                        }
                     });
                 }
 
@@ -985,6 +1078,17 @@
                     </div>
                 `;
             });
+
+            // Atualiza o painel inferior com as somas reais calculadas
+            atualizarPainelResumo(somaPix, somaDinheiro, somaCredito, somaDebito, somaTotalGeral);
+        }
+
+        function atualizarPainelResumo(pix, dinheiro, credito, debito, total) {
+            document.getElementById('resumo-pix').innerText = "R$ " + pix.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('resumo-dinheiro').innerText = "R$ " + dinheiro.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('resumo-credito').innerText = "R$ " + credito.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('resumo-debito').innerText = "R$ " + debito.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('resumo-total-geral').innerText = "R$ " + total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
     </script>
 </body>
