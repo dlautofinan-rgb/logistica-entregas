@@ -111,10 +111,10 @@
             overflow-x: auto;
             padding-bottom: 8px;
             margin-bottom: 15px;
-            scrollbar-width: none; /* Firefox */
+            scrollbar-width: none;
         }
         .tabs-bairros-container::-webkit-scrollbar {
-            display: none; /* Safari/Chrome */
+            display: none;
         }
         .tab-bairro-btn {
             background-color: #e9ecef;
@@ -352,7 +352,7 @@
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
 
-        /* Estilo do Painel de Resumo de Pagamentos */
+        /* Painel de Resumo de Pagamentos */
         .painel-pagamentos-resumo {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -426,8 +426,7 @@
         </select>
     </div>
 
-    <div class="tabs-bairros-container" id="bairros-tabs-container">
-        </div>
+    <div class="tabs-bairros-container" id="bairros-tabs-container"></div>
 
     <div id="map"></div>
 
@@ -625,17 +624,14 @@
             return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
         }
 
-        // Chamado ao alterar Data ou Motorista nos filtros de topo
         window.alterarFiltrosPrincipais = function() {
             bairroSelecionado = "Todos"; 
             atualizarAbasBairros();
             renderizarCards();
         }
 
-        // Função executada ao clicar em uma aba de Bairro
         window.selecionarAbaBairro = function(bairro) {
             bairroSelecionado = bairro;
-            
             const botoes = document.querySelectorAll('.tab-bairro-btn');
             botoes.forEach(btn => {
                 if (btn.getAttribute('data-bairro') === bairro) {
@@ -644,11 +640,9 @@
                     btn.classList.remove('active');
                 }
             });
-
             renderizarCards();
         }
 
-        // Cria as abas dos bairros que possuem entregas para a data e motorista selecionados
         function atualizarAbasBairros() {
             const containerAbas = document.getElementById('bairros-tabs-container');
             const filtroDataSel = document.getElementById('filter-date').value;
@@ -679,7 +673,6 @@
 
             containerAbas.innerHTML = "";
 
-            // Botão "Todos os Bairros"
             const btnTodos = document.createElement('button');
             btnTodos.className = `tab-bairro-btn ${bairroSelecionado === "Todos" ? 'active' : ''}`;
             btnTodos.setAttribute('data-bairro', 'Todos');
@@ -687,7 +680,6 @@
             btnTodos.onclick = () => selecionarAbaBairro('Todos');
             containerAbas.appendChild(btnTodos);
 
-            // Botões de cada Bairro
             bairrosOrdenados.forEach(bairro => {
                 const btn = document.createElement('button');
                 btn.className = `tab-bairro-btn ${bairroSelecionado === bairro ? 'active' : ''}`;
@@ -698,7 +690,6 @@
             });
         }
 
-        // --- PEÇAS ---
         window.adicionarLinhaPeca = function(containerId, nome = "", valor = "") {
             const container = document.getElementById(containerId);
             const div = document.createElement('div');
@@ -716,14 +707,17 @@
             const lines = container.querySelectorAll('.peca-row');
             let list = [];
             lines.forEach(linha => {
-                const nome = linha.querySelector('.p-nome').value.trim();
-                const valor = linha.querySelector('.p-valor').value.trim();
-                if(nome) list.push({ nome, valor });
+                const nomeInput = linha.querySelector('.p-nome');
+                const valorInput = linha.querySelector('.p-valor');
+                if (nomeInput && valorInput) {
+                    const nome = nomeInput.value.trim();
+                    const valor = valorInput.value.trim();
+                    if (nome) list.push({ nome, valor });
+                }
             });
             return list;
         }
 
-        // --- PAGAMENTOS ---
         window.adicionarLinhaPagamento = function(containerId, formaSelected = "PIX", valor = "") {
             const container = document.getElementById(containerId);
             const div = document.createElement('div');
@@ -746,9 +740,13 @@
             const lines = container.querySelectorAll('.pagamento-row');
             let list = [];
             lines.forEach(linha => {
-                const forma = inline_p_forma = linha.querySelector('.p-forma').value;
-                const valor = linha.querySelector('.p-valor-pagto').value.trim();
-                if(forma) list.push({ forma, valor });
+                const formaSelect = linha.querySelector('.p-forma');
+                const valorInput = linha.querySelector('.p-valor-pagto');
+                if (formaSelect && valorInput) {
+                    const forma = formaSelect.value;
+                    const valor = valorInput.value.trim();
+                    list.push({ forma, valor });
+                }
             });
             return list;
         }
@@ -864,7 +862,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
+            window.open(`https://maps.google.com/?q=${enderecoFormatado}`, '_blank');
         }
 
         window.abrirContato = function(telefone) {
@@ -945,7 +943,7 @@
 
             update(ref(db, 'entregas/' + id), dadosAtualizados);
             if (nomeCliente) {
-                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato, bairro: bairro });
+                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, city: cidade, contato: contato, bairro: bairro });
             }
             fecharModalEditar();
         }
@@ -977,7 +975,6 @@
             if(rota) {
                 const novoEstado = !rota.devolvida;
                 const atualizacoes = { devolvida: novoEstado };
-                
                 if(novoEstado) {
                     atualizacoes.concluida = false;
                 }
@@ -988,7 +985,6 @@
         window.excluirRota = function(id) { if (confirm("Excluir esta entrega?")) set(ref(db, 'entregas/' + id), null); }
         window.excluirTudo = function() { if (confirm("Apagar todas as entregas desta visão?")) set(rotasRef, null); }
 
-        // --- SISTEMA DE BACKUP ---
         window.exportarBackup = async function() {
             try {
                 const databaseRef = ref(db);
@@ -997,7 +993,6 @@
                     const dadosCompletos = snapshot.val();
                     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dadosCompletos, null, 2));
                     const downloadAnchor = document.createElement('a');
-                    
                     const dataHoje = new Date().toISOString().split('T')[0];
                     downloadAnchor.setAttribute("href", dataStr);
                     downloadAnchor.setAttribute("download", `backup_logistica_${dataHoje}.json`);
@@ -1008,7 +1003,7 @@
                     alert("Nenhum dado encontrado para exportação.");
                 }
             } catch (error) {
-                console.error("Erro ao exportar backup: ", error);
+                console.error(error);
                 alert("Erro ao gerar backup de segurança.");
             }
         }
@@ -1021,13 +1016,10 @@
             leitor.onload = function(e) {
                 try {
                     const dadosImportados = JSON.parse(e.target.result);
-                    if (confirm("Atenção! Isso substituirá os dados atuais pelos dados do arquivo. Deseja prosseguir?")) {
+                    if (confirm("Atenção! Isso substituirá os dados atuais. Deseja prosseguir?")) {
                         set(ref(db), dadosImportados)
-                            .then(() => alert("Backup importado e restaurado com sucesso!"))
-                            .catch(err => {
-                                console.error(err);
-                                alert("Erro ao salvar dados restaurados no Firebase.");
-                            });
+                            .then(() => alert("Backup importado com sucesso!"))
+                            .catch(() => alert("Erro ao salvar no Firebase."));
                     }
                 } catch (error) {
                     alert("Arquivo de backup inválido ou corrompido.");
@@ -1055,7 +1047,6 @@
                 }
 
                 const driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
-                
                 let bairroMatch = true;
                 if (bairroSelecionado !== "Todos") {
                     bairroMatch = r.bairro && (r.bairro.trim() === bairroSelecionado);
@@ -1087,13 +1078,9 @@
 
             rotasFiltradas.forEach(rota => {
                 const dataFormatada = formatarDataHoraCard(rota.data);
-                
                 let classeEstado = '';
-                if (rota.concluida) {
-                    classeEstado = 'concluida';
-                } else if (rota.devolvida) {
-                    classeEstado = 'devolvida';
-                }
+                if (rota.concluida) classeEstado = 'concluida';
+                else if (rota.devolvida) classeEstado = 'devolvida';
 
                 const textoBotaoConcluir = rota.concluida ? '↩️ Refazer' : '✅ Concluir';
                 const textoBotaoDevolucao = rota.devolvida ? '↩️ Pendente' : '↩️ Devolução';
@@ -1105,7 +1092,6 @@
                 const bairroTexto = rota.bairro || "Não informado";
                 const motoristaAtual = rota.abaMotorista || "Carlos";
 
-                // Processar Peças
                 let htmlPecas = "";
                 let valorTotalGeral = 0;
 
@@ -1121,7 +1107,6 @@
                     valorTotalGeral = valNum;
                 }
 
-                // Processar Pagamentos Múltiplos
                 let htmlPagamentos = "";
                 let totalPago = 0;
 
