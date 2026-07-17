@@ -84,17 +84,12 @@
             z-index: 1;
         }
 
+        /* Controles Principais (Data e Motorista) */
         .controls-container {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        @media (max-width: 600px) {
-            .controls-container {
-                grid-template-columns: 1fr;
-            }
+            margin-bottom: 12px;
         }
 
         .select-custom, .input-date-custom {
@@ -107,6 +102,36 @@
             font-weight: bold;
             box-sizing: border-box;
             height: 48px;
+        }
+
+        /* --- ABA BAIRRO --- */
+        .tabs-bairros-container {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            scrollbar-width: none; /* Firefox */
+        }
+        .tabs-bairros-container::-webkit-scrollbar {
+            display: none; /* Safari/Chrome */
+        }
+        .tab-bairro-btn {
+            background-color: #e9ecef;
+            color: #495057;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+        .tab-bairro-btn.active {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.25);
         }
 
         .form-container {
@@ -311,6 +336,7 @@
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
         .config-group input, .config-group select {
             width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box;
+            background-color: white;
         }
 
         .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
@@ -326,7 +352,7 @@
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
 
-        /* Estilo do Painel de Resumo de Pagamentos Abaixo */
+        /* Estilo do Painel de Resumo de Pagamentos */
         .painel-pagamentos-resumo {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -383,7 +409,6 @@
 
     <h1>📦 Logística de Entregas</h1>
 
-    <!-- Painel de Backups e Salvamentos -->
     <div class="backup-container">
         <span class="backup-title">💾 Backup de Segurança:</span>
         <div class="backup-buttons">
@@ -393,17 +418,16 @@
         </div>
     </div>
 
-    <!-- Filtros de Topo de Visualização -->
     <div class="controls-container">
-        <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltros()">
-        <select id="filter-driver" class="select-custom" onchange="alterarFiltros()">
+        <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltrosPrincipais()">
+        <select id="filter-driver" class="select-custom" onchange="alterarFiltrosPrincipais()">
             <option value="Carlos">Carlos</option>
             <option value="Luiz Marcelo">Luiz Marcelo</option>
         </select>
-        <select id="filter-neighborhood" class="select-custom" onchange="alterarFiltros()">
-            <option value="Todos">Todos os Bairros</option>
-        </select>
     </div>
+
+    <div class="tabs-bairros-container" id="bairros-tabs-container">
+        </div>
 
     <div id="map"></div>
 
@@ -422,7 +446,6 @@
                 </div>
             </div>
 
-            <!-- Seção de Peças -->
             <div class="pecas-container">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <label>Peças e Valores:</label>
@@ -437,7 +460,6 @@
                 </div>
             </div>
 
-            <!-- Seção de Pagamentos Múltiplos -->
             <div class="pagamentos-container">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <label>Pagamentos:</label>
@@ -479,7 +501,6 @@
 
     <div class="lista-entregas" id="container-entregas"></div>
 
-    <!-- PAINEL DE PAGAMENTOS ABAIXO -->
     <div class="painel-pagamentos-resumo">
         <h3>💰 Painel de Pagamentos do Dia</h3>
         <div class="resumo-grid" id="painel-resumo-pagamentos">
@@ -508,7 +529,6 @@
 
     <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
 
-    <!-- Modal Editar Entrega -->
     <div id="modal-editar-entrega" class="modal-edit">
         <div class="modal-content">
             <div class="modal-header">
@@ -522,7 +542,6 @@
                     <div class="form-group"><label>Contato:</label><input type="text" id="e-contato"></div>
                 </div>
 
-                <!-- Peças Editar -->
                 <div class="pecas-container">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <label>Peças e Valores:</label>
@@ -531,7 +550,6 @@
                     <div id="e-pecas-list"></div>
                 </div>
 
-                <!-- Pagamentos Editar -->
                 <div class="pagamentos-container">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <label>Pagamentos Múltiplos:</label>
@@ -582,6 +600,7 @@
 
         let rotas = [];
         let listaClientes = {}; 
+        let bairroSelecionado = "Todos"; 
 
         const fusoLocal = new Date();
         const offset = fusoLocal.getTimezoneOffset();
@@ -593,7 +612,7 @@
         onValue(rotasRef, (snapshot) => {
             const dados = snapshot.val();
             rotas = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
-            atualizarOpcoesBairros();
+            atualizarAbasBairros();
             renderizarCards();
         });
 
@@ -606,20 +625,36 @@
             return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
         }
 
-        window.alterarFiltros = function() {
+        // Chamado ao alterar Data ou Motorista nos filtros de topo
+        window.alterarFiltrosPrincipais = function() {
+            bairroSelecionado = "Todos"; 
+            atualizarAbasBairros();
             renderizarCards();
         }
 
-        // Atualiza dinamicamente a lista de bairros disponíveis para filtrar de acordo com a data e motorista selecionados
-        function atualizarOpcoesBairros() {
+        // Função executada ao clicar em uma aba de Bairro
+        window.selecionarAbaBairro = function(bairro) {
+            bairroSelecionado = bairro;
+            
+            const botoes = document.querySelectorAll('.tab-bairro-btn');
+            botoes.forEach(btn => {
+                if (btn.getAttribute('data-bairro') === bairro) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            renderizarCards();
+        }
+
+        // Cria as abas dos bairros que possuem entregas para a data e motorista selecionados
+        function atualizarAbasBairros() {
+            const containerAbas = document.getElementById('bairros-tabs-container');
             const filtroDataSel = document.getElementById('filter-date').value;
             const filtroMotoristaSel = document.getElementById('filter-driver').value;
-            const selectBairro = document.getElementById('filter-neighborhood');
-            const valorSelecionadoAnteriormente = selectBairro.value;
 
-            // Extrair bairros únicos das entregas que correspondem ao dia e motorista filtrados
             let bairrosSet = new Set();
-
             rotas.forEach(r => {
                 let dataMatch = false;
                 if (r.abaData) {
@@ -636,26 +671,34 @@
                 }
             });
 
-            // Limpa o select e adiciona a opção padrão "Todos"
-            selectBairro.innerHTML = '<option value="Todos">Todos os Bairros</option>';
+            const bairrosOrdenados = Array.from(bairrosSet).sort();
 
-            // Adiciona os bairros ordenados
-            Array.from(bairrosSet).sort().forEach(bairro => {
-                const opt = document.createElement('option');
-                opt.value = bairro;
-                opt.textContent = bairro;
-                selectBairro.appendChild(opt);
-            });
-
-            // Tenta restaurar a seleção se ela ainda estiver disponível na nova lista de bairros
-            if (bairrosSet.has(valorSelecionadoAnteriormente)) {
-                selectBairro.value = valorSelecionadoAnteriormente;
-            } else {
-                selectBairro.value = "Todos";
+            if (bairroSelecionado !== "Todos" && !bairrosSet.has(bairroSelecionado)) {
+                bairroSelecionado = "Todos";
             }
+
+            containerAbas.innerHTML = "";
+
+            // Botão "Todos os Bairros"
+            const btnTodos = document.createElement('button');
+            btnTodos.className = `tab-bairro-btn ${bairroSelecionado === "Todos" ? 'active' : ''}`;
+            btnTodos.setAttribute('data-bairro', 'Todos');
+            btnTodos.textContent = "Todos os Bairros";
+            btnTodos.onclick = () => selecionarAbaBairro('Todos');
+            containerAbas.appendChild(btnTodos);
+
+            // Botões de cada Bairro
+            bairrosOrdenados.forEach(bairro => {
+                const btn = document.createElement('button');
+                btn.className = `tab-bairro-btn ${bairroSelecionado === bairro ? 'active' : ''}`;
+                btn.setAttribute('data-bairro', bairro);
+                btn.textContent = bairro;
+                btn.onclick = () => selecionarAbaBairro(bairro);
+                containerAbas.appendChild(btn);
+            });
         }
 
-        // --- DINÂMICA DE PEÇAS ---
+        // --- PEÇAS ---
         window.adicionarLinhaPeca = function(containerId, nome = "", valor = "") {
             const container = document.getElementById(containerId);
             const div = document.createElement('div');
@@ -680,7 +723,7 @@
             return list;
         }
 
-        // --- DINÂMICA DE PAGAMENTOS MULTIPLOS ---
+        // --- PAGAMENTOS ---
         window.adicionarLinhaPagamento = function(containerId, formaSelected = "PIX", valor = "") {
             const container = document.getElementById(containerId);
             const div = document.createElement('div');
@@ -703,7 +746,7 @@
             const lines = container.querySelectorAll('.pagamento-row');
             let list = [];
             lines.forEach(linha => {
-                const forma = linha.querySelector('.p-forma').value;
+                const forma = inline_p_forma = linha.querySelector('.p-forma').value;
                 const valor = linha.querySelector('.p-valor-pagto').value.trim();
                 if(forma) list.push({ forma, valor });
             });
@@ -847,7 +890,6 @@
             document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
             document.getElementById('e-obs').value = rota.obs || "";
 
-            // Renderizar Peças
             const containerPecas = document.getElementById('e-pecas-list');
             containerPecas.innerHTML = "";
             if(rota.pecas && rota.pecas.length > 0) {
@@ -858,7 +900,6 @@
                 window.adicionarLinhaPeca('e-pecas-list');
             }
 
-            // Renderizar Pagamentos
             const containerPagamentos = document.getElementById('e-pagamentos-list');
             containerPagamentos.innerHTML = "";
             if(rota.pagamentos && rota.pagamentos.length > 0) {
@@ -911,7 +952,7 @@
 
         window.atualizarDadoEntrega = function(id, campo, valor) {
             const dadosAtualizar = {};
-            dadosAtualizar[campo] = campo === 'sequencia' && valor !== "" ? parseInt(valor) : valor;
+            dadosAtualizar[campo] = (campo === 'sequencia' && valor !== "") ? parseInt(valor) : valor;
             update(ref(db, 'entregas/' + id), dadosAtualizar);
         }
 
@@ -1003,7 +1044,6 @@
 
             const filtroDataSel = document.getElementById('filter-date').value; 
             const filtroMotoristaSel = document.getElementById('filter-driver').value;
-            const filtroBairroSel = document.getElementById('filter-neighborhood').value;
 
             let rotasFiltradas = rotas.filter(r => {
                 let dataMatch = false;
@@ -1016,10 +1056,9 @@
 
                 const driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
                 
-                // Filtro de Bairro
                 let bairroMatch = true;
-                if (filtroBairroSel !== "Todos") {
-                    bairroMatch = r.bairro && (r.bairro.trim() === filtroBairroSel);
+                if (bairroSelecionado !== "Todos") {
+                    bairroMatch = r.bairro && (r.bairro.trim() === bairroSelecionado);
                 }
 
                 return dataMatch && driverMatch && bairroMatch;
@@ -1034,7 +1073,6 @@
 
             totalBadge.innerText = `Total: ${rotasFiltradas.length} entrega(s)`;
             
-            // Variáveis para somar os valores do Painel de Resumo de Pagamentos
             let somaPix = 0;
             let somaDinheiro = 0;
             let somaCredito = 0;
@@ -1065,6 +1103,7 @@
                 const hSaida = rota.horaSaida || "";
                 const hChegada = rota.horaChegada || "";
                 const bairroTexto = rota.bairro || "Não informado";
+                const motoristaAtual = rota.abaMotorista || "Carlos";
 
                 // Processar Peças
                 let htmlPecas = "";
@@ -1092,7 +1131,6 @@
                         htmlPagamentos += `<div><span>💳 ${pag.forma}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
                         totalPago += valNum;
 
-                        // Se a entrega NÃO estiver marcada como Devolvida, somamos ao Painel de Resumos
                         if (!rota.devolvida) {
                             if (pag.forma === "PIX") somaPix += valNum;
                             else if (pag.forma === "Dinheiro") somaDinheiro += valNum;
@@ -1167,7 +1205,6 @@
                 `;
             });
 
-            // Atualiza o painel inferior com as somas reais calculadas
             atualizarPainelResumo(somaPix, somaDinheiro, somaCredito, somaDebito, somaTotalGeral);
         }
 
