@@ -84,11 +84,12 @@
             z-index: 1;
         }
 
+        /* Controles Principais (Data e Motorista) */
         .controls-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 8px;
+            margin-bottom: 12px;
         }
 
         .select-custom, .input-date-custom {
@@ -101,6 +102,36 @@
             font-weight: bold;
             box-sizing: border-box;
             height: 48px;
+        }
+
+        /* --- ABA BAIRRO (Estilo de Abas do App) --- */
+        .tabs-bairros-container {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            scrollbar-width: none; /* Firefox */
+        }
+        .tabs-bairros-container::-webkit-scrollbar {
+            display: none; /* Safari/Chrome */
+        }
+        .tab-bairro-btn {
+            background-color: #e9ecef;
+            color: #495057;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+        .tab-bairro-btn.active {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.25);
         }
 
         .form-container {
@@ -278,11 +309,12 @@
         .card-title { font-size: 16px; font-weight: bold; margin: 0; color: #222; }
 
         .badges-wrapper { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
-        .card-date, .card-sequence-badge {
+        .card-date, .card-sequence-badge, .card-neighborhood-badge {
             font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #fff;
         }
         .card-date { background-color: #6c757d; }
         .card-sequence-badge { background-color: #8e44ad; font-size: 11px; padding: 3px 8px; }
+        .card-neighborhood-badge { background-color: #fd7e14; }
 
         .card-body { font-size: 13px; line-height: 1.5; color: #444; }
         .card-body p { margin: 4px 0; }
@@ -376,7 +408,6 @@
 
     <h1>📦 Logística de Entregas</h1>
 
-    <!-- Painel de Backups e Salvamentos -->
     <div class="backup-container">
         <span class="backup-title">💾 Backup de Segurança:</span>
         <div class="backup-buttons">
@@ -387,12 +418,15 @@
     </div>
 
     <div class="controls-container">
-        <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltros()">
-        <select id="filter-driver" class="select-custom" onchange="alterarFiltros()">
+        <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltrosPrincipais()">
+        <select id="filter-driver" class="select-custom" onchange="alterarFiltrosPrincipais()">
             <option value="Carlos">Carlos</option>
             <option value="Luiz Marcelo">Luiz Marcelo</option>
         </select>
     </div>
+
+    <div class="tabs-bairros-container" id="bairros-tabs-container">
+        </div>
 
     <div id="map"></div>
 
@@ -411,7 +445,6 @@
                 </div>
             </div>
 
-            <!-- Seção de Peças -->
             <div class="pecas-container">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <label>Peças e Valores:</label>
@@ -426,7 +459,6 @@
                 </div>
             </div>
 
-            <!-- Seção de Pagamentos Múltiplos -->
             <div class="pagamentos-container">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <label>Pagamentos:</label>
@@ -449,10 +481,15 @@
 
             <div class="form-row">
                 <div class="form-group"><label>CEP:</label><input type="text" id="f-cep" required></div>
-                <div class="form-group"><label>Posição na Rota (Sequência):</label><input type="number" id="f-sequencia" placeholder="Ex: 1" min="1"></div>
+                <div class="form-group"><label>Bairro:</label><input type="text" id="f-bairro" placeholder="Ex: Uvaranas" required></div>
             </div>
+            
+            <div class="form-row">
+                <div class="form-group"><label>Posição na Rota (Sequência):</label><input type="number" id="f-sequencia" placeholder="Ex: 1" min="1"></div>
+                <div class="form-group"><label>Cidade:</label><input type="text" id="f-cidade" required></div>
+            </div>
+            
             <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="f-ruas" required></div>
-            <div class="form-group full-width"><label>Cidade:</label><input type="text" id="f-cidade" required></div>
             <div class="form-group full-width"><label>Observações:</label><textarea id="f-obs" rows="2"></textarea></div>
             
             <button type="submit" class="btn btn-submit">Adicionar à Rota</button>
@@ -463,7 +500,6 @@
 
     <div class="lista-entregas" id="container-entregas"></div>
 
-    <!-- PAINEL DE PAGAMENTOS ABAIXO -->
     <div class="painel-pagamentos-resumo">
         <h3>💰 Painel de Pagamentos do Dia</h3>
         <div class="resumo-grid" id="painel-resumo-pagamentos">
@@ -492,7 +528,6 @@
 
     <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
 
-    <!-- Modal Editar Entrega -->
     <div id="modal-editar-entrega" class="modal-edit">
         <div class="modal-content">
             <div class="modal-header">
@@ -506,7 +541,6 @@
                     <div class="form-group"><label>Contato:</label><input type="text" id="e-contato"></div>
                 </div>
 
-                <!-- Peças Editar -->
                 <div class="pecas-container">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <label>Peças e Valores:</label>
@@ -515,7 +549,6 @@
                     <div id="e-pecas-list"></div>
                 </div>
 
-                <!-- Pagamentos Editar -->
                 <div class="pagamentos-container">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <label>Pagamentos Múltiplos:</label>
@@ -526,10 +559,13 @@
 
                 <div class="form-row">
                     <div class="form-group"><label>CEP:</label><input type="text" id="e-cep" required></div>
+                    <div class="form-group"><label>Bairro:</label><input type="text" id="e-bairro" required></div>
+                </div>
+                <div class="form-row">
                     <div class="form-group"><label>Sequência da Rota:</label><input type="number" id="e-sequencia" min="1"></div>
+                    <div class="form-group"><label>Cidade:</label><input type="text" id="e-cidade" required></div>
                 </div>
                 <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="e-ruas" required></div>
-                <div class="form-group full-width"><label>Cidade:</label><input type="text" id="e-cidade" required></div>
                 <div class="form-group full-width"><label>Observações:</label><textarea id="e-obs" rows="2"></textarea></div>
                 
                 <button type="submit" class="btn btn-submit" style="background-color: var(--success); width: 100%;">Salvar Alterações</button>
@@ -563,6 +599,7 @@
 
         let rotas = [];
         let listaClientes = {}; 
+        let bairroSelecionado = "Todos"; // Armazena a aba de bairro ativa
 
         const fusoLocal = new Date();
         const offset = fusoLocal.getTimezoneOffset();
@@ -574,6 +611,7 @@
         onValue(rotasRef, (snapshot) => {
             const dados = snapshot.val();
             rotas = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
+            atualizarAbasBairros();
             renderizarCards();
         });
 
@@ -586,8 +624,80 @@
             return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
         }
 
-        window.alterarFiltros = function() {
+        // Chamado ao alterar Data ou Motorista -> reseta aba de bairro para "Todos"
+        window.alterarFiltrosPrincipais = function() {
+            bairroSelecionado = "Todos"; 
+            atualizarAbasBairros();
             renderizarCards();
+        }
+
+        // Função para selecionar um bairro a partir das abas
+        window.selecionarAbaBairro = function(bairro) {
+            bairroSelecionado = bairro;
+            
+            // Atualizar classes .active nos botões
+            const botoes = document.querySelectorAll('.tab-bairro-btn');
+            botoes.forEach(btn => {
+                if (btn.getAttribute('data-bairro') === bairro) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            renderizarCards();
+        }
+
+        // Recria as abas de bairro baseado nos dados filtrados do dia e motorista
+        function atualizarAbasBairros() {
+            const containerAbas = document.getElementById('bairros-tabs-container');
+            const filtroDataSel = document.getElementById('filter-date').value;
+            const filtroMotoristaSel = document.getElementById('filter-driver').value;
+
+            // Extrair bairros correspondentes
+            let bairrosSet = new Set();
+            rotas.forEach(r => {
+                let dataMatch = false;
+                if (r.abaData) {
+                    if (r.abaData === "Hoje" && filtroDataSel === hojeInput) dataMatch = true;
+                    else dataMatch = (r.abaData === filtroDataSel);
+                } else {
+                    dataMatch = (filtroDataSel === hojeInput);
+                }
+
+                const driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
+                
+                if (dataMatch && driverMatch && r.bairro) {
+                    bairrosSet.add(r.bairro.trim());
+                }
+            });
+
+            const bairrosOrdenados = Array.from(bairrosSet).sort();
+
+            // Se o bairro anteriormente selecionado não existe mais no dia/motorista, reseta para Todos
+            if (bairroSelecionado !== "Todos" && !bairrosSet.has(bairroSelecionado)) {
+                bairroSelecionado = "Todos";
+            }
+
+            containerAbas.innerHTML = "";
+
+            // Botão da aba "Todos"
+            const btnTodos = document.createElement('button');
+            btnTodos.className = `tab-bairro-btn ${bairroSelecionado === "Todos" ? 'active' : ''}`;
+            btnTodos.setAttribute('data-bairro', 'Todos');
+            btnTodos.textContent = "Todos os Bairros";
+            btnTodos.onclick = () => selecionarAbaBairro('Todos');
+            containerAbas.appendChild(btnTodos);
+
+            // Botões para cada bairro dinâmico
+            bairrosOrdenados.forEach(bairro => {
+                const btn = document.createElement('button');
+                btn.className = `tab-bairro-btn ${bairroSelecionado === bairro ? 'active' : ''}`;
+                btn.setAttribute('data-bairro', bairro);
+                btn.textContent = bairro;
+                btn.onclick = () => selecionarAbaBairro(bairro);
+                containerAbas.appendChild(btn);
+            });
         }
 
         // --- DINÂMICA DE PEÇAS ---
@@ -679,6 +789,7 @@
                         document.getElementById('f-ruas').value = c.rua || "";
                         document.getElementById('f-cidade').value = c.cidade || "";
                         document.getElementById('f-contato').value = c.contato || "";
+                        document.getElementById('f-bairro').value = c.bairro || "";
                         containerSugestoes.style.display = "none";
                     };
                     containerSugestoes.appendChild(div);
@@ -699,6 +810,7 @@
             const rua = document.getElementById('f-ruas').value;
             const cidade = document.getElementById('f-cidade').value;
             const contato = document.getElementById('f-contato').value;
+            const bairro = document.getElementById('f-bairro').value.trim();
             
             const pecasDigitadas = obterPecasForm('f-pecas-list');
             const pagamentosDigitados = obterPagamentosForm('f-pagamentos-list');
@@ -715,6 +827,7 @@
                 rua: rua,
                 cidade: cidade,
                 contato: contato,
+                bairro: bairro,
                 sequencia: document.getElementById('f-sequencia').value ? parseInt(document.getElementById('f-sequencia').value) : "", 
                 obs: document.getElementById('f-obs').value,
                 concluida: false,
@@ -726,7 +839,7 @@
             set(ref(db, 'entregas/' + idGerado), novaRota);
 
             if (nomeCliente) {
-                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato });
+                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato, bairro: bairro });
             }
             
             document.getElementById('route-form').reset();
@@ -753,7 +866,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
+            window.open(`https://maps.google.com/?q=${enderecoFormatado}`, '_blank');
         }
 
         window.abrirContato = function(telefone) {
@@ -775,6 +888,7 @@
             document.getElementById('e-ruas').value = rota.rua || "";
             document.getElementById('e-cidade').value = rota.cidade || "";
             document.getElementById('e-contato').value = rota.contato || "";
+            document.getElementById('e-bairro').value = rota.bairro || "";
             document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
             document.getElementById('e-obs').value = rota.obs || "";
 
@@ -815,6 +929,7 @@
             const rua = document.getElementById('e-ruas').value;
             const cidade = document.getElementById('e-cidade').value;
             const contato = document.getElementById('e-contato').value;
+            const bairro = document.getElementById('e-bairro').value.trim();
             
             const pecasEditadas = obterPecasForm('e-pecas-list');
             const pagamentosEditados = obterPagamentosForm('e-pagamentos-list');
@@ -827,13 +942,14 @@
                 rua: rua,
                 cidade: cidade,
                 contato: contato,
+                bairro: bairro,
                 sequencia: document.getElementById('e-sequencia').value ? parseInt(document.getElementById('e-sequencia').value) : "",
                 obs: document.getElementById('e-obs').value
             };
 
             update(ref(db, 'entregas/' + id), dadosAtualizados);
             if (nomeCliente) {
-                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato });
+                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato, bairro: bairro });
             }
             fecharModalEditar();
         }
@@ -943,7 +1059,14 @@
                 }
 
                 const driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
-                return dataMatch && driverMatch;
+                
+                // Filtro Dinâmico da Aba Bairro ativa
+                let bairroMatch = true;
+                if (bairroSelecionado !== "Todos") {
+                    bairroMatch = r.bairro && (r.bairro.trim() === bairroSelecionado);
+                }
+
+                return dataMatch && driverMatch && bairroMatch;
             });
 
             rotasFiltradas.sort((a, b) => {
@@ -963,7 +1086,7 @@
             let somaTotalGeral = 0;
 
             if (rotasFiltradas.length === 0) {
-                container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma rota pendente para este dia.</p>";
+                container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma rota pendente para os filtros selecionados.</p>";
                 atualizarPainelResumo(0, 0, 0, 0, 0);
                 return;
             }
@@ -985,6 +1108,7 @@
                 const numSequencia = rota.sequencia !== undefined ? rota.sequencia : "";
                 const hSaida = rota.horaSaida || "";
                 const hChegada = rota.horaChegada || "";
+                const bairroTexto = rota.bairro || "Não informado";
 
                 // Processar Peças
                 let htmlPecas = "";
@@ -1012,7 +1136,7 @@
                         htmlPagamentos += `<div><span>💳 ${pag.forma}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
                         totalPago += valNum;
 
-                        // Se a entrega NÃO estiver marcada como Devolvida, somamos ao Painel de Resumos
+                        // Se a entrega NÃO estiver Devolvida, somamos ao Painel
                         if (!rota.devolvida) {
                             if (pag.forma === "PIX") somaPix += valNum;
                             else if (pag.forma === "Dinheiro") somaDinheiro += valNum;
@@ -1028,7 +1152,8 @@
                         <div class="card-header">
                             <h4 class="card-title">${rota.cliente}</h4>
                             <div class="badges-wrapper">
-                                ${numSequencia ? `<span class="card-sequence-badge">📍 Posição: ${numSequencia}º</span>` : ''}
+                                <span class="card-neighborhood-badge">📍 ${bairroTexto}</span>
+                                ${numSequencia ? `<span class="card-sequence-badge">Posição: ${numSequencia}º</span>` : ''}
                                 <span class="card-date">${dataFormatada}</span>
                             </div>
                         </div>
@@ -1079,7 +1204,6 @@
                 `;
             });
 
-            // Atualiza o painel inferior com as somas reais calculadas
             atualizarPainelResumo(somaPix, somaDinheiro, somaCredito, somaDebito, somaTotalGeral);
         }
 
@@ -1093,5 +1217,3 @@
     </script>
 </body>
 </html>
-index.html
-Exibindo index.html.
