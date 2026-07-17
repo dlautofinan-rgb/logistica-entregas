@@ -104,7 +104,7 @@
             height: 48px;
         }
 
-        /* --- ABA BAIRRO (Estilo de Abas do App) --- */
+        /* --- ABA BAIRRO --- */
         .tabs-bairros-container {
             display: flex;
             gap: 8px;
@@ -336,6 +336,7 @@
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
         .config-group input, .config-group select {
             width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box;
+            background-color: white;
         }
 
         .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
@@ -351,7 +352,7 @@
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
 
-        /* Estilo do Painel de Resumo de Pagamentos Abaixo */
+        /* Estilo do Painel de Resumo de Pagamentos */
         .painel-pagamentos-resumo {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -599,7 +600,7 @@
 
         let rotas = [];
         let listaClientes = {}; 
-        let bairroSelecionado = "Todos"; // Armazena a aba de bairro ativa
+        let bairroSelecionado = "Todos"; 
 
         const fusoLocal = new Date();
         const offset = fusoLocal.getTimezoneOffset();
@@ -624,18 +625,17 @@
             return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
         }
 
-        // Chamado ao alterar Data ou Motorista -> reseta aba de bairro para "Todos"
+        // Chamado ao alterar Data ou Motorista nos filtros de topo
         window.alterarFiltrosPrincipais = function() {
             bairroSelecionado = "Todos"; 
             atualizarAbasBairros();
             renderizarCards();
         }
 
-        // Função para selecionar um bairro a partir das abas
+        // Função executada ao clicar em uma aba de Bairro
         window.selecionarAbaBairro = function(bairro) {
             bairroSelecionado = bairro;
             
-            // Atualizar classes .active nos botões
             const botoes = document.querySelectorAll('.tab-bairro-btn');
             botoes.forEach(btn => {
                 if (btn.getAttribute('data-bairro') === bairro) {
@@ -648,13 +648,12 @@
             renderizarCards();
         }
 
-        // Recria as abas de bairro baseado nos dados filtrados do dia e motorista
+        // Cria as abas dos bairros que possuem entregas para a data e motorista selecionados
         function atualizarAbasBairros() {
             const containerAbas = document.getElementById('bairros-tabs-container');
             const filtroDataSel = document.getElementById('filter-date').value;
             const filtroMotoristaSel = document.getElementById('filter-driver').value;
 
-            // Extrair bairros correspondentes
             let bairrosSet = new Set();
             rotas.forEach(r => {
                 let dataMatch = false;
@@ -674,14 +673,13 @@
 
             const bairrosOrdenados = Array.from(bairrosSet).sort();
 
-            // Se o bairro anteriormente selecionado não existe mais no dia/motorista, reseta para Todos
             if (bairroSelecionado !== "Todos" && !bairrosSet.has(bairroSelecionado)) {
                 bairroSelecionado = "Todos";
             }
 
             containerAbas.innerHTML = "";
 
-            // Botão da aba "Todos"
+            // Botão "Todos os Bairros"
             const btnTodos = document.createElement('button');
             btnTodos.className = `tab-bairro-btn ${bairroSelecionado === "Todos" ? 'active' : ''}`;
             btnTodos.setAttribute('data-bairro', 'Todos');
@@ -689,7 +687,7 @@
             btnTodos.onclick = () => selecionarAbaBairro('Todos');
             containerAbas.appendChild(btnTodos);
 
-            // Botões para cada bairro dinâmico
+            // Botões de cada Bairro
             bairrosOrdenados.forEach(bairro => {
                 const btn = document.createElement('button');
                 btn.className = `tab-bairro-btn ${bairroSelecionado === bairro ? 'active' : ''}`;
@@ -700,7 +698,7 @@
             });
         }
 
-        // --- DINÂMICA DE PEÇAS ---
+        // --- PEÇAS ---
         window.adicionarLinhaPeca = function(containerId, nome = "", valor = "") {
             const container = document.getElementById(containerId);
             const div = document.createElement('div');
@@ -725,7 +723,7 @@
             return list;
         }
 
-        // --- DINÂMICA DE PAGAMENTOS MULTIPLOS ---
+        // --- PAGAMENTOS ---
         window.adicionarLinhaPagamento = function(containerId, formaSelected = "PIX", valor = "") {
             const container = document.getElementById(containerId);
             const div = document.createElement('div');
@@ -866,7 +864,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://maps.google.com/?q=${enderecoFormatado}`, '_blank');
+            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
         }
 
         window.abrirContato = function(telefone) {
@@ -892,7 +890,6 @@
             document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
             document.getElementById('e-obs').value = rota.obs || "";
 
-            // Renderizar Peças
             const containerPecas = document.getElementById('e-pecas-list');
             containerPecas.innerHTML = "";
             if(rota.pecas && rota.pecas.length > 0) {
@@ -903,7 +900,6 @@
                 window.adicionarLinhaPeca('e-pecas-list');
             }
 
-            // Renderizar Pagamentos
             const containerPagamentos = document.getElementById('e-pagamentos-list');
             containerPagamentos.innerHTML = "";
             if(rota.pagamentos && rota.pagamentos.length > 0) {
@@ -956,7 +952,7 @@
 
         window.atualizarDadoEntrega = function(id, campo, valor) {
             const dadosAtualizar = {};
-            dadosAtualizar[campo] = campo === 'sequencia' && valor !== "" ? parseInt(valor) : valor;
+            dadosAtualizar[campo] = (campo === 'sequencia' && valor !== "") ? parseInt(valor) : valor;
             update(ref(db, 'entregas/' + id), dadosAtualizar);
         }
 
@@ -1060,7 +1056,6 @@
 
                 const driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
                 
-                // Filtro Dinâmico da Aba Bairro ativa
                 let bairroMatch = true;
                 if (bairroSelecionado !== "Todos") {
                     bairroMatch = r.bairro && (r.bairro.trim() === bairroSelecionado);
@@ -1078,7 +1073,6 @@
 
             totalBadge.innerText = `Total: ${rotasFiltradas.length} entrega(s)`;
             
-            // Variáveis para somar os valores do Painel de Resumo de Pagamentos
             let somaPix = 0;
             let somaDinheiro = 0;
             let somaCredito = 0;
@@ -1109,6 +1103,7 @@
                 const hSaida = rota.horaSaida || "";
                 const hChegada = rota.horaChegada || "";
                 const bairroTexto = rota.bairro || "Não informado";
+                const motoristaAtual = rota.abaMotorista || "Carlos";
 
                 // Processar Peças
                 let htmlPecas = "";
@@ -1136,7 +1131,6 @@
                         htmlPagamentos += `<div><span>💳 ${pag.forma}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
                         totalPago += valNum;
 
-                        // Se a entrega NÃO estiver Devolvida, somamos ao Painel
                         if (!rota.devolvida) {
                             if (pag.forma === "PIX") somaPix += valNum;
                             else if (pag.forma === "Dinheiro") somaDinheiro += valNum;
@@ -1184,9 +1178,16 @@
                                         <input type="time" value="${hChegada}" onchange="atualizarDadoEntrega('${rota.id}', 'horaChegada', this.value)">
                                     </div>
                                 </div>
-                                <div class="config-row" style="grid-template-columns: 1fr;">
+                                <div class="config-row">
                                     <div class="config-group">
-                                        <label>🔢 Alterar Posição / Sequência:</label>
+                                        <label>👤 Mudar Motorista:</label>
+                                        <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)">
+                                            <option value="Carlos" ${motoristaAtual === 'Carlos' ? 'selected' : ''}>Carlos</option>
+                                            <option value="Luiz Marcelo" ${motoristaAtual === 'Luiz Marcelo' ? 'selected' : ''}>Luiz Marcelo</option>
+                                        </select>
+                                    </div>
+                                    <div class="config-group">
+                                        <label>🔢 Alterar Posição:</label>
                                         <input type="number" value="${numSequencia}" placeholder="Ex: 1" onchange="atualizarDadoEntrega('${rota.id}', 'sequencia', this.value)" min="1">
                                     </div>
                                 </div>
