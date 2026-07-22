@@ -423,6 +423,7 @@
         <select id="filter-driver" class="select-custom" onchange="alterarFiltrosPrincipais()">
             <option value="Carlos">Carlos</option>
             <option value="Luiz Marcelo">Luiz Marcelo</option>
+            <option value="Barbosa">Barbosa</option>
         </select>
     </div>
 
@@ -1169,6 +1170,7 @@
                                         <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)">
                                             <option value="Carlos" ${motoristaAtual === 'Carlos' ? 'selected' : ''}>Carlos</option>
                                             <option value="Luiz Marcelo" ${motoristaAtual === 'Luiz Marcelo' ? 'selected' : ''}>Luiz Marcelo</option>
+                                            <option value="Barbosa" ${motoristaAtual === 'Barbosa' ? 'selected' : ''}>Barbosa</option>
                                         </select>
                                     </div>
                                     <div class="config-group">
