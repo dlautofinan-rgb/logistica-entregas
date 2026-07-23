@@ -473,6 +473,7 @@
                             <option value="Cartão de Crédito">Cartão de Crédito</option>
                             <option value="Cartão de Débito">Cartão de Débito</option>
                             <option value="Faturado">Faturado</option>
+                            <option value="CONFIRMAR PGTO">CONFIRMAR PGTO</option>
                         </select>
                         <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
                         <div style="width:34px"></div>
@@ -724,7 +725,7 @@
             const div = document.createElement('div');
             div.className = 'pagamento-row';
             
-            const options = ["PIX", "Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Faturado"]
+            const options = ["PIX", "Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Faturado", "CONFIRMAR PGTO"]
                 .map(opt => `<option value="${opt}" ${opt === formaSelected ? 'selected' : ''}>${opt}</option>`)
                 .join("");
 
@@ -854,6 +855,7 @@
                         <option value="Cartão de Crédito">Cartão de Crédito</option>
                         <option value="Cartão de Débito">Cartão de Débito</option>
                         <option value="Faturado">Faturado</option>
+                        <option value="CONFIRMAR PGTO">CONFIRMAR PGTO</option>
                     </select>
                     <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
                     <div style="width:34px"></div>
