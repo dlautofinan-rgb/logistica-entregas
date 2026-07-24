@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Logística de Rotas</title>
+    <title>Logística de Rotas & Suporte</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
@@ -31,12 +31,60 @@
             box-sizing: border-box;
         }
 
-        h1 { 
-            text-align: center; 
+        /* Cabeçalho com Botão de 3 Pontinhos */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .app-header h1 { 
             font-size: 20px; 
-            margin: 10px 0 15px 0;
+            margin: 0;
             color: #111; 
         }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: #333;
+        }
+        .menu-btn:hover { background-color: #e9ecef; }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 35px;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 1px solid #ddd;
+            z-index: 3000;
+            min-width: 180px;
+            overflow: hidden;
+        }
+
+        .dropdown-menu button {
+            width: 100%;
+            padding: 12px 16px;
+            text-align: left;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #333;
+            border-bottom: 1px solid #eee;
+        }
+        .dropdown-menu button:last-child { border-bottom: none; }
+        .dropdown-menu button:hover { background-color: #f1f3f5; }
 
         /* Painel de Backup */
         .backup-container {
@@ -403,132 +451,197 @@
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .modal-header h3 { margin: 0; font-size: 18px; }
         .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
+
+        /* Estilos da Aba de Suporte */
+        #view-suporte { display: none; }
+        .suporte-card {
+            background: white;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 5px solid var(--warning);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .suporte-card.resolvido { border-left-color: var(--success); opacity: 0.8; }
+        .suporte-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-bottom: 6px; }
+        .badge-sup { font-size: 10px; padding: 2px 6px; border-radius: 4px; color: white; background: #6c757d; }
+        .badge-tipo { background-color: var(--devolucao); }
     </style>
 </head>
 <body>
 
-    <h1>📦 Logística de Entregas</h1>
-
-    <div class="backup-container">
-        <span class="backup-title">💾 Backup de Segurança:</span>
-        <div class="backup-buttons">
-            <button class="btn-backup btn-exportar" onclick="exportarBackup()">📥 Exportar</button>
-            <button class="btn-backup btn-importar" onclick="document.getElementById('import-file').click()">📤 Importar</button>
-            <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importarBackup(event)">
+    <div class="app-header">
+        <h1 id="app-title">📦 Logística de Entregas</h1>
+        <button class="menu-btn" onclick="toggleMenu()">⋮</button>
+        <div id="dropdown-menu" class="dropdown-menu">
+            <button onclick="trocarAba('entregas')">📦 Entregas & Rotas</button>
+            <button onclick="trocarAba('suporte')">🎧 Suporte & Ocorrências</button>
         </div>
     </div>
 
-    <div class="controls-container">
-        <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltrosPrincipais()">
-        <select id="filter-driver" class="select-custom" onchange="alterarFiltrosPrincipais()">
-            <option value="Carlos">Carlos</option>
-            <option value="Luiz Marcelo">Luiz Marcelo</option>
-            <option value="Barbosa">Barbosa</option>
-        </select>
-    </div>
-
-    <div class="tabs-bairros-container" id="bairros-tabs-container"></div>
-
-    <div id="map"></div>
-
-    <div class="form-container">
-        <h3>➕ Nova Entrega</h3>
-        <form id="route-form" onsubmit="adicionarRota(event)" autocomplete="off">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Cliente:</label>
-                    <input type="text" id="f-cliente" oninput="buscarCliente(this.value)" required>
-                    <div id="suggestions" class="autocomplete-suggestions" style="display: none;"></div>
-                </div>
-                <div class="form-group">
-                    <label>Contato do Comprador:</label>
-                    <input type="text" id="f-contato" placeholder="(00) 90000-0000">
-                </div>
+    <div id="view-entregas">
+        <div class="backup-container">
+            <span class="backup-title">💾 Backup de Segurança:</span>
+            <div class="backup-buttons">
+                <button class="btn-backup btn-exportar" onclick="exportarBackup()">📥 Exportar</button>
+                <button class="btn-backup btn-importar" onclick="document.getElementById('import-file').click()">📤 Importar</button>
+                <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importarBackup(event)">
             </div>
+        </div>
 
-            <div class="pecas-container">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label>Peças e Valores:</label>
-                    <button type="button" class="btn-mini btn-add-peca" onclick="adicionarLinhaPeca('f-pecas-list')">➕ Add Peça</button>
-                </div>
-                <div id="f-pecas-list">
-                    <div class="peca-row">
-                        <input type="text" placeholder="Nome da Peça" required class="p-nome">
-                        <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
-                        <div style="width:34px"></div>
+        <div class="controls-container">
+            <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltrosPrincipais()">
+            <select id="filter-driver" class="select-custom" onchange="alterarFiltrosPrincipais()">
+                <option value="Carlos">Carlos</option>
+                <option value="Luiz Marcelo">Luiz Marcelo</option>
+                <option value="Barbosa">Barbosa</option>
+            </select>
+        </div>
+
+        <div class="tabs-bairros-container" id="bairros-tabs-container"></div>
+
+        <div id="map"></div>
+
+        <div class="form-container">
+            <h3>➕ Nova Entrega</h3>
+            <form id="route-form" onsubmit="adicionarRota(event)" autocomplete="off">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cliente:</label>
+                        <input type="text" id="f-cliente" oninput="buscarCliente(this.value)" required>
+                        <div id="suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Contato do Comprador:</label>
+                        <input type="text" id="f-contato" placeholder="(00) 90000-0000">
                     </div>
                 </div>
-            </div>
 
-            <div class="pagamentos-container">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label>Pagamentos:</label>
-                    <button type="button" class="btn-mini btn-add-pagto" onclick="adicionarLinhaPagamento('f-pagamentos-list')">➕ Add Pagamento</button>
+                <div class="pecas-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label>Peças e Valores:</label>
+                        <button type="button" class="btn-mini btn-add-peca" onclick="adicionarLinhaPeca('f-pecas-list')">➕ Add Peça</button>
+                    </div>
+                    <div id="f-pecas-list">
+                        <div class="peca-row">
+                            <input type="text" placeholder="Nome da Peça" required class="p-nome">
+                            <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
+                            <div style="width:34px"></div>
+                        </div>
+                    </div>
                 </div>
-                <div id="f-pagamentos-list">
-                    <div class="pagamento-row">
-                        <select class="p-forma" required>
-                            <option value="PIX">PIX</option>
-                            <option value="Dinheiro">Dinheiro</option>
-                            <option value="Cartão de Crédito">Cartão de Crédito</option>
-                            <option value="Cartão de Débito">Cartão de Débito</option>
-                            <option value="Faturado">Faturado</option>
-                            <option value="CONFIRMAR PGTO">CONFIRMAR PGTO</option>
+
+                <div class="pagamentos-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label>Pagamentos:</label>
+                        <button type="button" class="btn-mini btn-add-pagto" onclick="adicionarLinhaPagamento('f-pagamentos-list')">➕ Add Pagamento</button>
+                    </div>
+                    <div id="f-pagamentos-list">
+                        <div class="pagamento-row">
+                            <select class="p-forma" required>
+                                <option value="PIX">PIX</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                <option value="Cartão de Débito">Cartão de Débito</option>
+                                <option value="Faturado">Faturado</option>
+                                <option value="CONFIRMAR PGTO">CONFIRMAR PGTO</option>
+                            </select>
+                            <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
+                            <div style="width:34px"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group"><label>CEP:</label><input type="text" id="f-cep" required></div>
+                    <div class="form-group"><label>Bairro:</label><input type="text" id="f-bairro" placeholder="Ex: Uvaranas" required></div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group"><label>Posição na Rota (Sequência):</label><input type="number" id="f-sequencia" placeholder="Ex: 1" min="1"></div>
+                    <div class="form-group"><label>Cidade:</label><input type="text" id="f-cidade" required></div>
+                </div>
+                
+                <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="f-ruas" required></div>
+                <div class="form-group full-width"><label>Observações:</label><textarea id="f-obs" rows="2"></textarea></div>
+                
+                <button type="submit" class="btn btn-submit">Adicionar à Rota</button>
+            </form>
+        </div>
+
+        <div class="total-badge" id="total-entregas">Total: 0 entregas</div>
+
+        <div class="lista-entregas" id="container-entregas"></div>
+
+        <div class="painel-pagamentos-resumo">
+            <h3>💰 Painel de Pagamentos do Dia</h3>
+            <div class="resumo-grid" id="painel-resumo-pagamentos">
+                <div class="resumo-item">
+                    <div class="resumo-item-label">PIX</div>
+                    <div class="resumo-item-valor" id="resumo-pix">R$ 0,00</div>
+                </div>
+                <div class="resumo-item">
+                    <div class="resumo-item-label">Dinheiro</div>
+                    <div class="resumo-item-valor" id="resumo-dinheiro">R$ 0,00</div>
+                </div>
+                <div class="resumo-item">
+                    <div class="resumo-item-label">Crédito</div>
+                    <div class="resumo-item-valor" id="resumo-credito">R$ 0,00</div>
+                </div>
+                <div class="resumo-item">
+                    <div class="resumo-item-label">Débito</div>
+                    <div class="resumo-item-valor" id="resumo-debito">R$ 0,00</div>
+                </div>
+                <div class="resumo-item" style="grid-column: span 2; background-color: #f5f3ff; border-left-color: #8b5cf6;">
+                    <div class="resumo-item-label" style="color: #7c3aed;">Total Geral Arrecadado</div>
+                    <div class="resumo-item-valor" id="resumo-total-geral" style="font-size: 20px; color: #5b21b6;">R$ 0,00</div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
+    </div>
+
+    <div id="view-suporte">
+        <div class="form-container">
+            <h3>🚨 Abrir Nova Ocorrência / Suporte</h3>
+            <form id="sup-form" onsubmit="enviarOcorrencia(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Motorista:</label>
+                        <select id="sup-motorista" required>
+                            <option value="Carlos">Carlos</option>
+                            <option value="Luiz Marcelo">Luiz Marcelo</option>
+                            <option value="Barbosa">Barbosa</option>
                         </select>
-                        <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
-                        <div style="width:34px"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Ocorrência:</label>
+                        <select id="sup-tipo" required>
+                            <option value="Devolução">Devolução</option>
+                            <option value="Reclamação">Reclamação</option>
+                            <option value="Mercado / Compra">Mercado / Compra</option>
+                            <option value="Confirmação de PGTO">Confirmação de PGTO</option>
+                            <option value="Cliente Ausente">Cliente Ausente</option>
+                            <option value="Outros">Outros</option>
+                        </select>
                     </div>
                 </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group"><label>CEP:</label><input type="text" id="f-cep" required></div>
-                <div class="form-group"><label>Bairro:</label><input type="text" id="f-bairro" placeholder="Ex: Uvaranas" required></div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group"><label>Posição na Rota (Sequência):</label><input type="number" id="f-sequencia" placeholder="Ex: 1" min="1"></div>
-                <div class="form-group"><label>Cidade:</label><input type="text" id="f-cidade" required></div>
-            </div>
-            
-            <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="f-ruas" required></div>
-            <div class="form-group full-width"><label>Observações:</label><textarea id="f-obs" rows="2"></textarea></div>
-            
-            <button type="submit" class="btn btn-submit">Adicionar à Rota</button>
-        </form>
-    </div>
-
-    <div class="total-badge" id="total-entregas">Total: 0 entregas</div>
-
-    <div class="lista-entregas" id="container-entregas"></div>
-
-    <div class="painel-pagamentos-resumo">
-        <h3>💰 Painel de Pagamentos do Dia</h3>
-        <div class="resumo-grid" id="painel-resumo-pagamentos">
-            <div class="resumo-item">
-                <div class="resumo-item-label">PIX</div>
-                <div class="resumo-item-valor" id="resumo-pix">R$ 0,00</div>
-            </div>
-            <div class="resumo-item">
-                <div class="resumo-item-label">Dinheiro</div>
-                <div class="resumo-item-valor" id="resumo-dinheiro">R$ 0,00</div>
-            </div>
-            <div class="resumo-item">
-                <div class="resumo-item-label">Crédito</div>
-                <div class="resumo-item-valor" id="resumo-credito">R$ 0,00</div>
-            </div>
-            <div class="resumo-item">
-                <div class="resumo-item-label">Débito</div>
-                <div class="resumo-item-valor" id="resumo-debito">R$ 0,00</div>
-            </div>
-            <div class="resumo-item" style="grid-column: span 2; background-color: #f5f3ff; border-left-color: #8b5cf6;">
-                <div class="resumo-item-label" style="color: #7c3aed;">Total Geral Arrecadado</div>
-                <div class="resumo-item-valor" id="resumo-total-geral" style="font-size: 20px; color: #5b21b6;">R$ 0,00</div>
-            </div>
+                <div class="form-group">
+                    <label>Cliente / Referência:</label>
+                    <input type="text" id="sup-cliente" placeholder="Ex: Mercado Silva ou Nome do Cliente" required>
+                </div>
+                <div class="form-group full-width">
+                    <label>Descrição do Problema / Detalhes:</label>
+                    <textarea id="sup-obs" rows="3" placeholder="Descreva o que ocorreu..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-submit" style="background-color: var(--devolucao);">Registrar Ocorrência</button>
+            </form>
         </div>
-    </div>
 
-    <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
+        <div class="total-badge">📋 Registros de Suporte</div>
+        <div id="container-suporte"></div>
+    </div>
 
     <div id="modal-editar-entrega" class="modal-edit">
         <div class="modal-content">
@@ -595,12 +708,14 @@
         const db = getDatabase(app);
         const rotasRef = ref(db, 'entregas');
         const clientesRef = ref(db, 'clientes');
+        const suporteRef = ref(db, 'suporte');
 
         const map = L.map('map').setView([-23.5505, -46.6333], 4); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
 
         let rotas = [];
         let listaClientes = {}; 
+        let listaSuporte = [];
         let bairroSelecionado = "Todos"; 
 
         const fusoLocal = new Date();
@@ -610,6 +725,32 @@
         
         document.getElementById('filter-date').value = hojeInput;
 
+        // Funções de Troca de Menu
+        window.toggleMenu = function() {
+            const menu = document.getElementById('dropdown-menu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
+        window.trocarAba = function(aba) {
+            document.getElementById('dropdown-menu').style.display = 'none';
+            if(aba === 'entregas') {
+                document.getElementById('view-entregas').style.display = 'block';
+                document.getElementById('view-suporte').style.display = 'none';
+                document.getElementById('app-title').innerText = "📦 Logística de Entregas";
+            } else {
+                document.getElementById('view-entregas').style.display = 'none';
+                document.getElementById('view-suporte').style.display = 'block';
+                document.getElementById('app-title').innerText = "🎧 Suporte & Ocorrências";
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            if(!e.target.classList.contains('menu-btn')) {
+                document.getElementById('dropdown-menu').style.display = 'none';
+            }
+        });
+
+        // Firebase Listeners
         onValue(rotasRef, (snapshot) => {
             const dados = snapshot.val();
             rotas = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
@@ -620,6 +761,12 @@
         onValue(clientesRef, (snapshot) => {
             const dados = snapshot.val();
             listaClientes = dados ? dados : {};
+        });
+
+        onValue(suporteRef, (snapshot) => {
+            const dados = snapshot.val();
+            listaSuporte = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
+            renderizarSuporte();
         });
 
         function formatarDataHoraCard(dataString) { 
@@ -861,6 +1008,29 @@
                     <div style="width:34px"></div>
                 </div>`;
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Enviar Suporte / Ocorrência
+        window.enviarOcorrencia = function(e) {
+            e.preventDefault();
+            const idGerado = Date.now().toString();
+
+            const ocorrencia = {
+                data: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                motorista: document.getElementById('sup-motorista').value,
+                tipo: document.getElementById('sup-tipo').value,
+                cliente: document.getElementById('sup-cliente').value,
+                obs: document.getElementById('sup-obs').value,
+                status: 'Aberto'
+            };
+
+            set(ref(db, 'suporte/' + idGerado), ocorrencia);
+            document.getElementById('sup-form').reset();
+            alert("Ocorrência registrada no Suporte!");
+        }
+
+        window.resolverOcorrencia = function(id) {
+            update(ref(db, 'suporte/' + id), { status: 'Resolvido' });
         }
 
         window.abrirNoGps = function(rua, city) {
@@ -1195,6 +1365,40 @@
             });
 
             atualizarPainelResumo(somaPix, somaDinheiro, somaCredito, somaDebito, somaTotalGeral);
+        }
+
+        function renderizarSuporte() {
+            const container = document.getElementById('container-suporte');
+            container.innerHTML = "";
+
+            if(listaSuporte.length === 0) {
+                container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma ocorrência registrada no suporte.</p>";
+                return;
+            }
+
+            // Ordena chamados em aberto no topo
+            listaSuporte.sort((a, b) => (a.status === 'Resolvido') ? 1 : -1);
+
+            listaSuporte.forEach(sup => {
+                const resolvido = sup.status === 'Resolvido';
+                container.innerHTML += `
+                    <div class="suporte-card ${resolvido ? 'resolvido' : ''}">
+                        <div class="suporte-header">
+                            <span>${sup.cliente}</span>
+                            <div>
+                                <span class="badge-sup badge-tipo">${sup.tipo}</span>
+                                <span class="badge-sup">👤 ${sup.motorista}</span>
+                            </div>
+                        </div>
+                        <div style="font-size: 13px; color: #444; margin: 6px 0;">
+                            <p style="margin: 4px 0;"><strong>Detalhes:</strong> ${sup.obs}</p>
+                            <p style="margin: 4px 0;"><strong>Registrado às:</strong> ${sup.data}</p>
+                            <p style="margin: 4px 0;"><strong>Status:</strong> ${resolvido ? '✅ Resolvido' : '⏳ Em Aberto'}</p>
+                        </div>
+                        ${!resolvido ? `<button class="btn-action btn-check" style="width: 100%; margin-top: 8px;" onclick="resolverOcorrencia('${sup.id}')">Marcar como Resolvido</button>` : ''}
+                    </div>
+                `;
+            });
         }
 
         function atualizarPainelResumo(pix, dinheiro, credito, debito, total) {
