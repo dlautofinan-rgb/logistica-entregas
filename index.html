@@ -67,7 +67,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             border: 1px solid #ddd;
             z-index: 3000;
-            min-width: 180px;
+            min-width: 190px;
             overflow: hidden;
         }
 
@@ -161,9 +161,7 @@
             margin-bottom: 15px;
             scrollbar-width: none;
         }
-        .tabs-bairros-container::-webkit-scrollbar {
-            display: none;
-        }
+        .tabs-bairros-container::-webkit-scrollbar { display: none; }
         .tab-bairro-btn {
             background-color: #e9ecef;
             color: #495057;
@@ -222,11 +220,6 @@
             box-sizing: border-box; 
             font-size: 14px;
             background-color: #fdfdfd;
-        }
-
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
-            border-color: var(--primary);
-            outline: none;
         }
 
         /* Peças e Valores */
@@ -307,7 +300,6 @@
             font-size: 13px;
             border-bottom: 1px solid #eee;
         }
-        .suggestion-item:hover { background-color: #f1f3f5; }
         
         .btn {
             padding: 12px; 
@@ -374,6 +366,7 @@
         .card-pagamentos-list div { font-size: 12px; color: #6b21a8; display: flex; justify-content: space-between; }
 
         .obs-alert { background: #fff3cd; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-top: 5px !important; display: inline-block;}
+        .motivo-alert { background: #f8d7da; color: #721c24; padding: 6px 10px; border-radius: 6px; font-size: 12px; margin-top: 6px; display: block; font-weight: bold; border-left: 3px solid var(--danger); }
 
         .driver-status-section {
             background-color: #f1f3f5; border-radius: 8px; padding: 10px; margin-top: 10px; border: 1px dashed #ced4da;
@@ -400,7 +393,7 @@
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
 
-        /* Painel de Resumo de Pagamentos */
+        /* Resumo de Pagamentos */
         .painel-pagamentos-resumo {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -442,6 +435,7 @@
             margin-top: 2px;
         }
 
+        /* MODAIS DE EDICÃO E MOTIVOS POR CLIQUE */
         .modal-edit {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;
         }
@@ -452,20 +446,57 @@
         .modal-header h3 { margin: 0; font-size: 18px; }
         .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
 
-        /* Estilos da Aba de Suporte */
-        #view-suporte { display: none; }
-        .suporte-card {
+        /* Botões Clicáveis para Seleção de Motivos */
+        .motivos-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-motivo-opcao {
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-motivo-opcao:hover {
+            border-color: var(--devolucao);
+            background-color: #fffaf5;
+            color: var(--devolucao);
+        }
+
+        /* Estilos das Outras Abas */
+        #view-suporte, #view-clientes { display: none; }
+        .suporte-card, .cliente-card {
             background: white;
             border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 10px;
-            border-left: 5px solid var(--warning);
+            padding: 14px;
+            margin-bottom: 12px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            border-left: 5px solid var(--primary);
         }
         .suporte-card.resolvido { border-left-color: var(--success); opacity: 0.8; }
-        .suporte-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-bottom: 6px; }
+        .suporte-header, .cliente-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 15px; margin-bottom: 6px; }
         .badge-sup { font-size: 10px; padding: 2px 6px; border-radius: 4px; color: white; background: #6c757d; }
         .badge-tipo { background-color: var(--devolucao); }
+
+        .cliente-historico-item {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 8px;
+            margin-top: 6px;
+            font-size: 12px;
+            border-left: 3px solid #ced4da;
+        }
     </style>
 </head>
 <body>
@@ -475,6 +506,7 @@
         <button class="menu-btn" onclick="toggleMenu()">⋮</button>
         <div id="dropdown-menu" class="dropdown-menu">
             <button onclick="trocarAba('entregas')">📦 Entregas & Rotas</button>
+            <button onclick="trocarAba('clientes')">👥 Clientes Cadastrados</button>
             <button onclick="trocarAba('suporte')">🎧 Suporte & Ocorrências</button>
         </div>
     </div>
@@ -602,6 +634,17 @@
         <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
     </div>
 
+    <div id="view-clientes">
+        <div class="form-container">
+            <h3>🔍 Pesquisar Cliente Cadastrado</h3>
+            <div class="form-group full-width">
+                <input type="text" id="busca-cliente-input" placeholder="Digite o nome do cliente..." oninput="renderizarClientes(this.value)">
+            </div>
+        </div>
+        <div class="total-badge" id="total-clientes-badge">Clientes: 0</div>
+        <div id="container-clientes"></div>
+    </div>
+
     <div id="view-suporte">
         <div class="form-container">
             <h3>🚨 Abrir Nova Ocorrência / Suporte</h3>
@@ -641,6 +684,29 @@
 
         <div class="total-badge">📋 Registros de Suporte</div>
         <div id="container-suporte"></div>
+    </div>
+
+    <div id="modal-motivos-devolucao" class="modal-edit">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Selecione o Motivo da Recusa</h3>
+                <button type="button" class="close-modal" onclick="fecharModalMotivos()">×</button>
+            </div>
+            <input type="hidden" id="motivo-id-entrega">
+            <p style="font-size: 13px; color: #666; margin-top: 0;">Clique em uma das opções abaixo para registrar:</p>
+            
+            <div class="motivos-grid">
+                <button type="button" class="btn-motivo-opcao" onclick="confirmarDevolucaoComMotivo('Cliente não quis devido a detalhes')">
+                    🔍 1. Cliente não quis devido a detalhes
+                </button>
+                <button type="button" class="btn-motivo-opcao" onclick="confirmarDevolucaoComMotivo('Cliente não quis por ser modelo diferente')">
+                    🚗 2. Cliente não quis por ser modelo diferente
+                </button>
+                <button type="button" class="btn-motivo-opcao" onclick="confirmarDevolucaoComMotivo('Cliente não quis pagar')">
+                    💸 3. Cliente não quis pagar
+                </button>
+            </div>
+        </div>
     </div>
 
     <div id="modal-editar-entrega" class="modal-edit">
@@ -725,7 +791,7 @@
         
         document.getElementById('filter-date').value = hojeInput;
 
-        // Funções de Troca de Menu
+        // Funções de Menu
         window.toggleMenu = function() {
             const menu = document.getElementById('dropdown-menu');
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
@@ -733,12 +799,18 @@
 
         window.trocarAba = function(aba) {
             document.getElementById('dropdown-menu').style.display = 'none';
+            document.getElementById('view-entregas').style.display = 'none';
+            document.getElementById('view-suporte').style.display = 'none';
+            document.getElementById('view-clientes').style.display = 'none';
+
             if(aba === 'entregas') {
                 document.getElementById('view-entregas').style.display = 'block';
-                document.getElementById('view-suporte').style.display = 'none';
                 document.getElementById('app-title').innerText = "📦 Logística de Entregas";
+            } else if(aba === 'clientes') {
+                document.getElementById('view-clientes').style.display = 'block';
+                document.getElementById('app-title').innerText = "👥 Clientes Cadastrados";
+                renderizarClientes();
             } else {
-                document.getElementById('view-entregas').style.display = 'none';
                 document.getElementById('view-suporte').style.display = 'block';
                 document.getElementById('app-title').innerText = "🎧 Suporte & Ocorrências";
             }
@@ -756,11 +828,17 @@
             rotas = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
             atualizarAbasBairros();
             renderizarCards();
+            if(document.getElementById('view-clientes').style.display === 'block') {
+                renderizarClientes();
+            }
         });
 
         onValue(clientesRef, (snapshot) => {
             const dados = snapshot.val();
             listaClientes = dados ? dados : {};
+            if(document.getElementById('view-clientes').style.display === 'block') {
+                renderizarClientes();
+            }
         });
 
         onValue(suporteRef, (snapshot) => {
@@ -977,6 +1055,7 @@
                 obs: document.getElementById('f-obs').value,
                 concluida: false,
                 devolvida: false,
+                motivoDevolucao: "",
                 horaSaida: "", 
                 horaChegada: "" 
             };
@@ -1008,6 +1087,99 @@
                     <div style="width:34px"></div>
                 </div>`;
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Renderizar Lista de Clientes Puxando Automático
+        window.renderizarClientes = function(filtroBusca = "") {
+            const container = document.getElementById('container-clientes');
+            const totalBadge = document.getElementById('total-clientes-badge');
+            container.innerHTML = "";
+
+            const termos = filtroBusca.toLowerCase().trim();
+            const nomesClientes = Object.keys(listaClientes).sort();
+
+            let clientesFiltrados = nomesClientes.filter(nome => nome.toLowerCase().includes(termos));
+            totalBadge.innerText = `Clientes Cadastrados: ${clientesFiltrados.length}`;
+
+            if(clientesFiltrados.length === 0) {
+                container.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>Nenhum cliente encontrado.</p>";
+                return;
+            }
+
+            clientesFiltrados.forEach(nomeCliente => {
+                const c = listaClientes[nomeCliente];
+                
+                const historicoEntregas = rotas.filter(r => r.cliente && r.cliente.toLowerCase() === nomeCliente.toLowerCase());
+
+                let htmlHistorico = "";
+                if(historicoEntregas.length > 0) {
+                    historicoEntregas.forEach(h => {
+                        let statusText = "⏳ Pendente";
+                        if(h.concluida) statusText = "✅ Entregue";
+                        if(h.devolvida) statusText = `↩️ Devolvida (${h.motivoDevolucao || 'Sem motivo'})`;
+
+                        htmlHistorico += `
+                            <div class="cliente-historico-item">
+                                <strong>📅 Data:</strong> ${formatarDataHoraCard(h.data)} | <strong>Status:</strong> ${statusText}<br>
+                                <strong>🚗 Motorista:</strong> ${h.abaMotorista || 'Carlos'}<br>
+                                <strong>📍 Endereço da Entrega:</strong> ${h.rua}, ${h.cidade}
+                            </div>
+                        `;
+                    });
+                } else {
+                    htmlHistorico = "<p style='font-size:12px; color:#888; margin:4px 0;'>Nenhum pedido recente registrado.</p>";
+                }
+
+                container.innerHTML += `
+                    <div class="cliente-card">
+                        <div class="cliente-header">
+                            <span>👤 ${nomeCliente}</span>
+                            ${c.contato ? `<button class="btn-action btn-whatsapp" style="padding:4px 8px;" onclick="abrirContato('${c.contato}')">💬 Contactar</button>` : ''}
+                        </div>
+                        <div style="font-size: 13px; color:#444;">
+                            <p style="margin: 4px 0;"><strong>📞 Contato:</strong> ${c.contato || 'Não informado'}</p>
+                            <p style="margin: 4px 0;"><strong>📍 Bairro:</strong> ${c.bairro || 'Não informado'}</p>
+                            <p style="margin: 4px 0;"><strong>🏠 Endereço Principal:</strong> ${c.rua || 'Não informado'}, ${c.cidade || ''}</p>
+                            <p style="margin: 4px 0;"><strong>📮 CEP:</strong> ${c.cep || 'Não informado'}</p>
+                            
+                            <hr style="border:none; border-top:1px solid #eee; margin:10px 0;">
+                            <strong>📦 Histórico de Pedidos (${historicoEntregas.length}):</strong>
+                            ${htmlHistorico}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // GERENCIAMENTO DE MOTIVOS COM UM CLIQUE
+        window.alternarDevolucao = function(id) {
+            const rota = rotas.find(r => r.id === id);
+            if(rota) {
+                if(rota.devolvida) {
+                    // Se já estiver devolvida, cancela a devolução e limpa motivo
+                    update(ref(db, 'entregas/' + id), { devolvida: false, motivoDevolucao: "" });
+                } else {
+                    // Abre o modal de motivos com botões clicáveis
+                    document.getElementById('motivo-id-entrega').value = id;
+                    document.getElementById('modal-motivos-devolucao').style.display = 'flex';
+                }
+            }
+        }
+
+        window.confirmarDevolucaoComMotivo = function(motivoEscolhido) {
+            const id = document.getElementById('motivo-id-entrega').value;
+            if(id) {
+                update(ref(db, 'entregas/' + id), {
+                    devolvida: true,
+                    concluida: false,
+                    motivoDevolucao: motivoEscolhido
+                });
+                fecharModalMotivos();
+            }
+        }
+
+        window.fecharModalMotivos = function() {
+            document.getElementById('modal-motivos-devolucao').style.display = 'none';
         }
 
         // Enviar Suporte / Ocorrência
@@ -1116,7 +1288,7 @@
 
             update(ref(db, 'entregas/' + id), dadosAtualizados);
             if (nomeCliente) {
-                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, city: cidade, contato: contato, bairro: bairro });
+                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato, bairro: bairro });
             }
             fecharModalEditar();
         }
@@ -1135,24 +1307,13 @@
                 
                 if(novoEstado) {
                     atualizacoes.devolvida = false;
+                    atualizacoes.motivoDevolucao = "";
                     if(!rota.horaChegada) {
                         atualizacoes.horaChegada = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
                     }
                 }
                 update(ref(db, 'entregas/' + id), atualizacoes);
             } 
-        }
-
-        window.alternarDevolucao = function(id) {
-            const rota = rotas.find(r => r.id === id);
-            if(rota) {
-                const novoEstado = !rota.devolvida;
-                const atualizacoes = { devolvida: novoEstado };
-                if(novoEstado) {
-                    atualizacoes.concluida = false;
-                }
-                update(ref(db, 'entregas/' + id), atualizacoes);
-            }
         }
 
         window.excluirRota = function(id) { if (confirm("Excluir esta entrega?")) set(ref(db, 'entregas/' + id), null); }
@@ -1256,7 +1417,7 @@
                 else if (rota.devolvida) classeEstado = 'devolvida';
 
                 const textoBotaoConcluir = rota.concluida ? '↩️ Refazer' : '✅ Concluir';
-                const textoBotaoDevolucao = rota.devolvida ? '↩️ Pendente' : '↩️ Devolução';
+                const textoBotaoDevolucao = rota.devolvida ? '↩️ Cancelar Recusa' : '↩️ Devolução';
                 
                 const contatoComprador = rota.contato || "";
                 const numSequencia = rota.sequencia !== undefined ? rota.sequencia : "";
@@ -1324,6 +1485,7 @@
                             <p><strong>CEP:</strong> ${rota.cep}</p>
                             ${contatoComprador ? `<p><strong>Contato:</strong> ${contatoComprador}</p>` : ''}
                             ${rota.obs ? `<p class="obs-alert">⚠️ <strong>Obs:</strong> ${rota.obs}</p>` : ''}
+                            ${rota.motivoDevolucao ? `<span class="motivo-alert">🚫 Motivo Recusa: ${rota.motivoDevolucao}</span>` : ''}
                             
                             <div class="driver-status-section">
                                 <div class="config-row">
@@ -1376,7 +1538,6 @@
                 return;
             }
 
-            // Ordena chamados em aberto no topo
             listaSuporte.sort((a, b) => (a.status === 'Resolvido') ? 1 : -1);
 
             listaSuporte.forEach(sup => {
@@ -1411,3 +1572,16 @@
     </script>
 </body>
 </html>
+         
+           
+      
+
+      
+           
+         
+                 
+         
+       
+    
+           
+     
