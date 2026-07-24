@@ -20,6 +20,7 @@
             --warning: #ffc107;
             --devolucao: #e67e22;
             --pagamento: #9b59b6;
+            --km-color: #20c997;
         }
 
         body {
@@ -67,7 +68,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             border: 1px solid #ddd;
             z-index: 3000;
-            min-width: 190px;
+            min-width: 200px;
             overflow: hidden;
         }
 
@@ -105,10 +106,7 @@
             margin: 0;
             color: #555;
         }
-        .backup-buttons {
-            display: flex;
-            gap: 8px;
-        }
+        .backup-buttons { display: flex; gap: 8px; }
         .btn-backup {
             padding: 8px 12px;
             font-size: 12px;
@@ -132,7 +130,7 @@
             z-index: 1;
         }
 
-        /* Controles Principais (Data e Motorista) */
+        /* Controles Principais */
         .controls-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -152,7 +150,7 @@
             height: 48px;
         }
 
-        /* --- ABA BAIRRO --- */
+        /* ABA BAIRRO */
         .tabs-bairros-container {
             display: flex;
             gap: 8px;
@@ -189,163 +187,58 @@
             position: relative;
         }
         
-        .form-container h3 {
-            margin-top: 0;
-            margin-bottom: 12px;
-            font-size: 16px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        
+        .form-container h3 { margin-top: 0; margin-bottom: 12px; font-size: 16px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .form-group { margin-bottom: 12px; position: relative; }
         .form-group.full-width { grid-column: span 2; }
         
         .form-group label { 
-            display: block; 
-            font-weight: 600; 
-            margin-bottom: 4px; 
-            font-size: 12px; 
-            color: #666;
+            display: block; font-weight: 600; margin-bottom: 4px; font-size: 12px; color: #666;
         }
         
         .form-group input, .form-group textarea, .form-group select {
-            width: 100%; 
-            padding: 10px; 
-            border: 1px solid #ddd; 
-            border-radius: 8px; 
-            box-sizing: border-box; 
-            font-size: 14px;
-            background-color: #fdfdfd;
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; background-color: #fdfdfd;
         }
 
-        /* Peças e Valores */
-        .pecas-container {
-            background: #f1f3f5;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            border: 1px solid #e2e8f0;
+        /* Peças e Pagamentos */
+        .pecas-container, .pagamentos-container {
+            background: #f1f3f5; padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0;
         }
-        .pecas-container label {
-            font-weight: bold;
-            font-size: 12px;
-            color: #495057;
-            display: block;
-            margin-bottom: 6px;
+        .pagamentos-container { background: #faf5ff; border-color: #e9d5ff; }
+        
+        .pecas-container label, .pagamentos-container label {
+            font-weight: bold; font-size: 12px; color: #495057; display: block; margin-bottom: 6px;
         }
-        .peca-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr auto;
-            gap: 6px;
-            margin-bottom: 6px;
-            align-items: center;
+        .pagamentos-container label { color: #6b21a8; }
+
+        .peca-row, .pagamento-row {
+            display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 6px; align-items: center;
         }
 
-        /* Pagamentos Múltiplos */
-        .pagamentos-container {
-            background: #faf5ff;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            border: 1px solid #e9d5ff;
-        }
-        .pagamentos-container label {
-            font-weight: bold;
-            font-size: 12px;
-            color: #6b21a8;
-            display: block;
-            margin-bottom: 6px;
-        }
-        .pagamento-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr auto;
-            gap: 6px;
-            margin-bottom: 6px;
-            align-items: center;
-        }
-
-        .btn-mini {
-            padding: 6px 10px;
-            font-size: 11px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
+        .btn-mini { padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
         .btn-add-peca { background-color: #6c757d; color: white; margin-bottom: 5px; }
         .btn-add-pagto { background-color: var(--pagamento); color: white; margin-bottom: 5px; }
-        .btn-remove-item { background-color: var(--danger); color: white; padding: 10px;}
+        .btn-remove-item { background-color: var(--danger); color: white; padding: 10px; }
 
         .autocomplete-suggestions {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: white;
-            border: 1px solid #ccc;
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            max-height: 160px;
-            overflow-y: auto;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 8px 8px; max-height: 160px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        .suggestion-item {
-            padding: 10px;
-            cursor: pointer;
-            font-size: 13px;
-            border-bottom: 1px solid #eee;
-        }
+        .suggestion-item { padding: 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; }
         
         .btn {
-            padding: 12px; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 14px; 
-            width: 100%; 
-            display: block; 
-            text-align: center; 
-            box-sizing: border-box;
+            padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; width: 100%; display: block; text-align: center; box-sizing: border-box;
         }
         .btn-submit { background-color: var(--primary); color: white; }
         .btn-danger-all { background-color: #fff; color: var(--danger); border: 1px solid var(--danger); margin: 15px 0; padding: 8px; font-size: 13px;}
         
-        .lista-entregas { margin-top: 5px; }
-
         .delivery-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            border-left: 5px solid var(--primary);
-            position: relative;
+            background: var(--card-bg); border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 5px solid var(--primary); position: relative;
         }
-        .delivery-card.concluida {
-            border-left-color: #bbb;
-            opacity: 0.85;
-            background-color: #f9f9f9;
-        }
+        .delivery-card.concluida { border-left-color: #bbb; opacity: 0.85; background-color: #f9f9f9; }
         .delivery-card.concluida .card-title { text-decoration: line-through; color: #777; }
-        
-        .delivery-card.devolvida {
-            border-left-color: var(--devolucao);
-            background-color: #fdf6f0;
-        }
-        .delivery-card.devolvida .card-title { text-decoration: line-through; color: var(--devolucao); }
+        .delivery-card.devolvida { border-left-color: var(--devolucao); background-color: #fdf6f0; }
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-        }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .card-title { font-size: 16px; font-weight: bold; margin: 0; color: #222; }
 
         .badges-wrapper { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
@@ -359,31 +252,22 @@
         .card-body { font-size: 13px; line-height: 1.5; color: #444; }
         .card-body p { margin: 4px 0; }
         
-        .card-pecas-list { background: #f8f9fa; border-radius: 6px; padding: 6px 10px; margin: 6px 0; border-left: 3px solid #dee2e6; }
-        .card-pecas-list div { font-size: 12px; color: #555; display: flex; justify-content: space-between; }
-
-        .card-pagamentos-list { background: #faf5ff; border-radius: 6px; padding: 6px 10px; margin: 6px 0; border-left: 3px solid #d8b4fe; }
-        .card-pagamentos-list div { font-size: 12px; color: #6b21a8; display: flex; justify-content: space-between; }
+        .card-pecas-list, .card-pagamentos-list {
+            background: #f8f9fa; border-radius: 6px; padding: 6px 10px; margin: 6px 0; border-left: 3px solid #dee2e6;
+        }
+        .card-pagamentos-list { background: #faf5ff; border-left-color: #d8b4fe; }
+        .card-pecas-list div, .card-pagamentos-list div { font-size: 12px; display: flex; justify-content: space-between; }
 
         .obs-alert { background: #fff3cd; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-top: 5px !important; display: inline-block;}
         .motivo-alert { background: #f8d7da; color: #721c24; padding: 6px 10px; border-radius: 6px; font-size: 12px; margin-top: 6px; display: block; font-weight: bold; border-left: 3px solid var(--danger); }
 
-        .driver-status-section {
-            background-color: #f1f3f5; border-radius: 8px; padding: 10px; margin-top: 10px; border: 1px dashed #ced4da;
-        }
-        .driver-status-section label {
-            display: block; font-size: 11px; font-weight: bold; color: #495057; margin-bottom: 4px; text-transform: uppercase;
-        }
+        .driver-status-section { background-color: #f1f3f5; border-radius: 8px; padding: 10px; margin-top: 10px; border: 1px dashed #ced4da; }
+        .driver-status-section label { display: block; font-size: 11px; font-weight: bold; color: #495057; margin-bottom: 4px; text-transform: uppercase; }
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-        .config-group input, .config-group select {
-            width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box;
-            background-color: white;
-        }
+        .config-group input, .config-group select { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; background-color: white; }
 
         .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
-        .btn-action {
-            flex: 1; min-width: 65px; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;
-        }
+        .btn-action { flex: 1; min-width: 65px; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; }
         .btn-gps { background-color: var(--info); color: white; }
         .btn-whatsapp { background-color: var(--whatsapp); color: white; }
         .btn-edit { background-color: var(--warning); color: #212529; }
@@ -393,110 +277,45 @@
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
 
-        /* Resumo de Pagamentos */
-        .painel-pagamentos-resumo {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            border: 1px solid #e9d5ff;
-        }
-        .painel-pagamentos-resumo h3 {
-            margin-top: 0;
-            margin-bottom: 12px;
-            font-size: 16px;
-            color: #6b21a8;
-            border-bottom: 2px solid #e9d5ff;
-            padding-bottom: 6px;
-        }
-        .resumo-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .resumo-item {
-            background-color: #faf5ff;
-            padding: 10px;
-            border-radius: 8px;
-            border-left: 4px solid var(--pagamento);
-        }
-        .resumo-item-label {
-            font-size: 11px;
-            font-weight: bold;
-            color: #6b21a8;
-            text-transform: uppercase;
-        }
-        .resumo-item-valor {
-            font-size: 16px;
-            font-weight: 800;
-            color: #222;
-            margin-top: 2px;
-        }
+        /* Painel de Pagamentos */
+        .painel-pagamentos-resumo { background-color: var(--card-bg); border-radius: 12px; padding: 16px; margin-top: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e9d5ff; }
+        .painel-pagamentos-resumo h3 { margin-top: 0; margin-bottom: 12px; font-size: 16px; color: #6b21a8; border-bottom: 2px solid #e9d5ff; padding-bottom: 6px; }
+        .resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .resumo-item { background-color: #faf5ff; padding: 10px; border-radius: 8px; border-left: 4px solid var(--pagamento); }
+        .resumo-item-label { font-size: 11px; font-weight: bold; color: #6b21a8; text-transform: uppercase; }
+        .resumo-item-valor { font-size: 16px; font-weight: 800; color: #222; margin-top: 2px; }
 
-        /* MODAIS DE EDICÃO E MOTIVOS POR CLIQUE */
-        .modal-edit {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;
-        }
-        .modal-content {
-            background-color: white; width: 100%; max-width: 500px; border-radius: 12px; padding: 20px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        }
+        /* --- ESTILOS DA ABA RELATÓRIO DE KM --- */
+        #view-km, #view-suporte, #view-clientes { display: none; }
+
+        .km-dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .km-card { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid var(--km-color); }
+        .km-card-full { grid-column: span 2; }
+        .km-card-title { font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+        .km-card-value { font-size: 22px; font-weight: 800; color: #111; }
+        .km-card-sub { font-size: 11px; color: #888; margin-top: 2px; }
+
+        .km-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-size: 13px; }
+        .km-table th, .km-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+        .km-table th { background-color: #e6fcf5; color: #0ca678; font-weight: bold; }
+
+        /* Modais */
+        .modal-edit { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; }
+        .modal-content { background-color: white; width: 100%; max-width: 500px; border-radius: 12px; padding: 20px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .modal-header h3 { margin: 0; font-size: 18px; }
         .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
 
-        /* Botões Clicáveis para Seleção de Motivos */
-        .motivos-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .btn-motivo-opcao {
-            background-color: #f8f9fa;
-            border: 2px solid #e9ecef;
-            padding: 14px;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .btn-motivo-opcao:hover {
-            border-color: var(--devolucao);
-            background-color: #fffaf5;
-            color: var(--devolucao);
-        }
+        .motivos-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn-motivo-opcao { background-color: #f8f9fa; border: 2px solid #e9ecef; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: bold; color: #333; text-align: left; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 10px; }
+        .btn-motivo-opcao:hover { border-color: var(--devolucao); background-color: #fffaf5; color: var(--devolucao); }
 
-        /* Estilos das Outras Abas */
-        #view-suporte, #view-clientes { display: none; }
-        .suporte-card, .cliente-card {
-            background: white;
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-            border-left: 5px solid var(--primary);
-        }
+        .suporte-card, .cliente-card { background: white; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border-left: 5px solid var(--primary); }
         .suporte-card.resolvido { border-left-color: var(--success); opacity: 0.8; }
         .suporte-header, .cliente-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 15px; margin-bottom: 6px; }
         .badge-sup { font-size: 10px; padding: 2px 6px; border-radius: 4px; color: white; background: #6c757d; }
         .badge-tipo { background-color: var(--devolucao); }
 
-        .cliente-historico-item {
-            background: #f8f9fa;
-            border-radius: 6px;
-            padding: 8px;
-            margin-top: 6px;
-            font-size: 12px;
-            border-left: 3px solid #ced4da;
-        }
+        .cliente-historico-item { background: #f8f9fa; border-radius: 6px; padding: 8px; margin-top: 6px; font-size: 12px; border-left: 3px solid #ced4da; }
     </style>
 </head>
 <body>
@@ -506,6 +325,7 @@
         <button class="menu-btn" onclick="toggleMenu()">⋮</button>
         <div id="dropdown-menu" class="dropdown-menu">
             <button onclick="trocarAba('entregas')">📦 Entregas & Rotas</button>
+            <button onclick="trocarAba('km')">📊 Relatório de KM</button>
             <button onclick="trocarAba('clientes')">👥 Clientes Cadastrados</button>
             <button onclick="trocarAba('suporte')">🎧 Suporte & Ocorrências</button>
         </div>
@@ -632,6 +452,60 @@
         </div>
 
         <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
+    </div>
+
+    <div id="view-km">
+        <div class="form-container" style="margin-bottom: 12px;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Mês de Referência:</label>
+                    <input type="month" id="km-filter-month" class="input-date-custom" onchange="calcularRelatorioKM()">
+                </div>
+                <div class="form-group">
+                    <label>Motorista:</label>
+                    <select id="km-filter-driver" class="select-custom" onchange="calcularRelatorioKM()">
+                        <option value="Todos">Todos os Motoristas</option>
+                        <option value="Carlos">Carlos</option>
+                        <option value="Luiz Marcelo">Luiz Marcelo</option>
+                        <option value="Barbosa">Barbosa</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="km-dashboard">
+            <div class="km-card km-card-full">
+                <div class="km-card-title">Total Estimado no Mês</div>
+                <div class="km-card-value" id="km-val-total">0,0 KM</div>
+                <div class="km-card-sub" id="km-sub-dias">Calculado em 0 dia(s) com entregas</div>
+            </div>
+            <div class="km-card">
+                <div class="km-card-title">Média Diária</div>
+                <div class="km-card-value" id="km-val-media-dia">0,0 KM</div>
+                <div class="km-card-sub">por dia trabalhado</div>
+            </div>
+            <div class="km-card">
+                <div class="km-card-title">Média por Entrega</div>
+                <div class="km-card-value" id="km-val-media-entrega">0,0 KM</div>
+                <div class="km-card-sub">por ponto atendido</div>
+            </div>
+        </div>
+
+        <div class="form-container">
+            <h3>📅 Detalhado por Dia</h3>
+            <table class="km-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Entregas</th>
+                        <th>KM Estimado</th>
+                    </tr>
+                </thead>
+                <tbody id="km-table-body">
+                    <tr><td colspan="3" style="text-align:center; color:#888;">Carregando dados...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div id="view-clientes">
@@ -790,8 +664,9 @@
         const hojeInput = dataLocalAjustada.toISOString().split('T')[0];
         
         document.getElementById('filter-date').value = hojeInput;
+        document.getElementById('km-filter-month').value = hojeInput.substring(0, 7);
 
-        // Funções de Menu
+        // Menu Toggle
         window.toggleMenu = function() {
             const menu = document.getElementById('dropdown-menu');
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
@@ -800,12 +675,17 @@
         window.trocarAba = function(aba) {
             document.getElementById('dropdown-menu').style.display = 'none';
             document.getElementById('view-entregas').style.display = 'none';
+            document.getElementById('view-km').style.display = 'none';
             document.getElementById('view-suporte').style.display = 'none';
             document.getElementById('view-clientes').style.display = 'none';
 
             if(aba === 'entregas') {
                 document.getElementById('view-entregas').style.display = 'block';
                 document.getElementById('app-title').innerText = "📦 Logística de Entregas";
+            } else if(aba === 'km') {
+                document.getElementById('view-km').style.display = 'block';
+                document.getElementById('app-title').innerText = "📊 Relatório de KM Rodados";
+                calcularRelatorioKM();
             } else if(aba === 'clientes') {
                 document.getElementById('view-clientes').style.display = 'block';
                 document.getElementById('app-title').innerText = "👥 Clientes Cadastrados";
@@ -828,17 +708,14 @@
             rotas = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
             atualizarAbasBairros();
             renderizarCards();
-            if(document.getElementById('view-clientes').style.display === 'block') {
-                renderizarClientes();
-            }
+            if(document.getElementById('view-km').style.display === 'block') calcularRelatorioKM();
+            if(document.getElementById('view-clientes').style.display === 'block') renderizarClientes();
         });
 
         onValue(clientesRef, (snapshot) => {
             const dados = snapshot.val();
             listaClientes = dados ? dados : {};
-            if(document.getElementById('view-clientes').style.display === 'block') {
-                renderizarClientes();
-            }
+            if(document.getElementById('view-clientes').style.display === 'block') renderizarClientes();
         });
 
         onValue(suporteRef, (snapshot) => {
@@ -849,6 +726,70 @@
 
         function formatarDataHoraCard(dataString) { 
             return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
+        }
+
+        /* --- LÓGICA DO RELATÓRIO DE KM --- */
+        // Estimativa média padrão por tipo de rota urbana
+        const DISTANCIA_ESTIMADA_POR_ENTREGA_KM = 8.5; 
+
+        window.calcularRelatorioKM = function() {
+            const mesSel = document.getElementById('km-filter-month').value; // AAAA-MM
+            const motoristaSel = document.getElementById('km-filter-driver').value;
+
+            if(!mesSel) return;
+
+            let entregasDoMes = rotas.filter(r => {
+                let dataEntrega = r.abaData || r.data.split('T')[0];
+                let mesEntrega = dataEntrega.substring(0, 7);
+                let driverMatch = (motoristaSel === "Todos") || (r.abaMotorista ? r.abaMotorista === motoristaSel : motoristaSel === "Carlos");
+
+                return mesEntrega === mesSel && driverMatch && !r.devolvida;
+            });
+
+            // Agrupar por dias
+            let diasAgrupados = {};
+            entregasDoMes.forEach(r => {
+                let dia = r.abaData || r.data.split('T')[0];
+                if(!diasAgrupados[dia]) diasAgrupados[dia] = 0;
+                diasAgrupados[dia]++;
+            });
+
+            let totalEntregas = entregasDoMes.length;
+            let totalDias = Object.keys(diasAgrupados).length;
+            let kmTotalMes = totalEntregas * DISTANCIA_ESTIMADA_POR_ENTREGA_KM;
+
+            let mediaPorDia = totalDias > 0 ? (kmTotalMes / totalDias) : 0;
+            let mediaPorEntrega = totalEntregas > 0 ? (kmTotalMes / totalEntregas) : 0;
+
+            document.getElementById('km-val-total').innerText = `${kmTotalMes.toFixed(1)} KM`;
+            document.getElementById('km-sub-dias').innerText = `Calculado em ${totalDias} dia(s) com entregas cadastradas`;
+            document.getElementById('km-val-media-dia').innerText = `${mediaPorDia.toFixed(1)} KM`;
+            document.getElementById('km-val-media-entrega').innerText = `${mediaPorEntrega.toFixed(1)} KM`;
+
+            // Preencher Tabela por Dia
+            const tbody = document.getElementById('km-table-body');
+            tbody.innerHTML = "";
+
+            const diasOrdenados = Object.keys(diasAgrupados).sort().reverse();
+
+            if(diasOrdenados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">Nenhum registro encontrado para este mês/motorista.</td></tr>`;
+                return;
+            }
+
+            diasOrdenados.forEach(dia => {
+                let qtd = diasAgrupados[dia];
+                let kmDia = qtd * DISTANCIA_ESTIMADA_POR_ENTREGA_KM;
+                let dataBR = dia.split('-').reverse().join('/');
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${dataBR}</strong></td>
+                        <td>${qtd} entrega(s)</td>
+                        <td><strong style="color:#0ca678;">~${kmDia.toFixed(1)} KM</strong></td>
+                    </tr>
+                `;
+            });
         }
 
         window.alterarFiltrosPrincipais = function() {
@@ -1089,7 +1030,7 @@
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
 
-        // Renderizar Lista de Clientes Puxando Automático
+        // Renderizar Lista de Clientes
         window.renderizarClientes = function(filtroBusca = "") {
             const container = document.getElementById('container-clientes');
             const totalBadge = document.getElementById('total-clientes-badge');
@@ -1108,7 +1049,6 @@
 
             clientesFiltrados.forEach(nomeCliente => {
                 const c = listaClientes[nomeCliente];
-                
                 const historicoEntregas = rotas.filter(r => r.cliente && r.cliente.toLowerCase() === nomeCliente.toLowerCase());
 
                 let htmlHistorico = "";
@@ -1151,15 +1091,13 @@
             });
         }
 
-        // GERENCIAMENTO DE MOTIVOS COM UM CLIQUE
+        // Devoluções e Modais
         window.alternarDevolucao = function(id) {
             const rota = rotas.find(r => r.id === id);
             if(rota) {
                 if(rota.devolvida) {
-                    // Se já estiver devolvida, cancela a devolução e limpa motivo
                     update(ref(db, 'entregas/' + id), { devolvida: false, motivoDevolucao: "" });
                 } else {
-                    // Abre o modal de motivos com botões clicáveis
                     document.getElementById('motivo-id-entrega').value = id;
                     document.getElementById('modal-motivos-devolucao').style.display = 'flex';
                 }
@@ -1182,7 +1120,7 @@
             document.getElementById('modal-motivos-devolucao').style.display = 'none';
         }
 
-        // Enviar Suporte / Ocorrência
+        // Suporte
         window.enviarOcorrencia = function(e) {
             e.preventDefault();
             const idGerado = Date.now().toString();
@@ -1207,7 +1145,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://maps.google.com/?q=${enderecoFormatado}`, '_blank');
+            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
         }
 
         window.abrirContato = function(telefone) {
@@ -1571,9 +1509,13 @@
         }
     </script>
 </body>
-</html>
+</html>   
+  
    
-
+                      
+   
+          
+         
       
-   
      
+                              
