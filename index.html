@@ -37,7 +37,7 @@
             justify-content: space-between;
             align-items: center;
             position: relative;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .app-header h1 { 
@@ -85,67 +85,6 @@
         }
         .dropdown-menu button:last-child { border-bottom: none; }
         .dropdown-menu button:hover { background-color: #f1f3f5; }
-
-        /* ABA / CARD DE CONTATO DE EMERGÊNCIA NO TOPO */
-        .emergency-card {
-            background: linear-gradient(135deg, #dc3545, #b02a37);
-            color: white;
-            border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.25);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .emergency-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .emergency-title {
-            font-size: 14px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .emergency-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .btn-emergency {
-            flex: 1;
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: none;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            text-decoration: none;
-            color: white;
-            transition: transform 0.1s ease;
-        }
-
-        .btn-emergency:active {
-            transform: scale(0.97);
-        }
-
-        .btn-emerg-wa {
-            background-color: var(--whatsapp);
-        }
-
-        .btn-emerg-call {
-            background-color: var(--primary);
-        }
 
         /* Painel de Backup */
         .backup-container {
@@ -572,20 +511,6 @@
         </div>
     </div>
 
-    <div class="emergency-card">
-        <div class="emergency-header">
-            <span class="emergency-title">🚨 Contato de Emergência (Suporte Direto)</span>
-        </div>
-        <div class="emergency-actions">
-            <button class="btn-emergency btn-emerg-wa" onclick="abrirEmergenciaWhatsapp('42999530069')">
-                💬 WhatsApp Rápido
-            </button>
-            <button class="btn-emergency btn-emerg-call" onclick="fazerLigacaoEmergencia('42999530069')">
-                📞 Ligar Agora
-            </button>
-        </div>
-    </div>
-
     <div id="view-entregas">
         <div class="backup-container">
             <span class="backup-title">💾 Backup de Segurança:</span>
@@ -865,18 +790,6 @@
         const hojeInput = dataLocalAjustada.toISOString().split('T')[0];
         
         document.getElementById('filter-date').value = hojeInput;
-
-        // AÇÕES DE CONTATO DE EMERGÊNCIA
-        window.abrirEmergenciaWhatsapp = function(numero) {
-            const apenasNumeros = numero.replace(/\D/g, "");
-            const mensagem = encodeURIComponent("🚨 EMERGÊNCIA LOGÍSTICA: Preciso de suporte imediato em rota!");
-            window.open(`https://wa.me/55${42999530069}?text=${FALA LUIZ}`, '_blank');
-        }
-
-        window.fazerLigacaoEmergencia = function(numero) {
-            const apenasNumeros = numero.replace(/\D/g, "");
-            window.open(`tel:${42999530069}`, '_self');
-        }
 
         // Funções de Menu
         window.toggleMenu = function() {
@@ -1243,8 +1156,10 @@
             const rota = rotas.find(r => r.id === id);
             if(rota) {
                 if(rota.devolvida) {
+                    // Se já estiver devolvida, cancela a devolução e limpa motivo
                     update(ref(db, 'entregas/' + id), { devolvida: false, motivoDevolucao: "" });
                 } else {
+                    // Abre o modal de motivos com botões clicáveis
                     document.getElementById('motivo-id-entrega').value = id;
                     document.getElementById('modal-motivos-devolucao').style.display = 'flex';
                 }
@@ -1292,7 +1207,7 @@
 
         window.abrirNoGps = function(rua, city) {
             const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
+            window.open(`https://maps.google.com/?q=${enderecoFormatado}`, '_blank');
         }
 
         window.abrirContato = function(telefone) {
@@ -1657,14 +1572,8 @@
     </script>
 </body>
 </html>
-     
-          
-         
-      
-            
-
    
 
- 
-  
- 
+      
+   
+     
