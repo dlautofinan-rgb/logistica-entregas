@@ -29,6 +29,7 @@
             --devolucao: #e67e22;
             --pagamento: #9b59b6;
             --km-color: #20c997;
+            --optimize: #6f42c1;
         }
 
         body {
@@ -236,6 +237,7 @@
             padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; width: 100%; display: block; text-align: center; box-sizing: border-box;
         }
         .btn-submit { background-color: var(--primary); color: white; }
+        .btn-optimize { background-color: var(--optimize); color: white; margin-bottom: 12px; }
         .btn-danger-all { background-color: #fff; color: var(--danger); border: 1px solid var(--danger); margin: 15px 0; padding: 8px; font-size: 13px;}
         
         .delivery-card {
@@ -273,7 +275,6 @@
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
         .config-group input, .config-group select { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; background-color: white; }
 
-        /* Estilos dos Comprovantes no Card */
         .comprovantes-preview-container {
             display: flex; gap: 8px; margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 8px;
         }
@@ -320,7 +321,6 @@
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
 
-        /* Canvas da Assinatura */
         #signature-pad {
             border: 2px dashed #007BFF; border-radius: 8px; width: 100%; height: 200px; background: #fafafa; touch-action: none; cursor: crosshair;
         }
@@ -378,6 +378,8 @@
         <div class="tabs-bairros-container" id="bairros-tabs-container"></div>
 
         <div id="map"></div>
+
+        <button type="button" class="btn btn-optimize" onclick="otimizarRotaAtual()">🚀 Otimizar Sequência da Rota</button>
 
         <div class="form-container">
             <h3>➕ Nova Entrega</h3>
@@ -816,7 +818,34 @@
             return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
         }
 
-        // FUNÇÕES PARA FOTO E ASSINATURA DIGITAL
+        // ALGORITMO DE OTIMIZAÇÃO DE ROTA POR BARRAGEM GEOGRÁFICA / BAIRROS
+        window.otimizarRotaAtual = function() {
+            const filtroDataSel = document.getElementById('filter-date').value; 
+            const filtroMotoristaSel = document.getElementById('filter-driver').value;
+
+            let pendentes = rotas.filter(r => {
+                let dataMatch = (r.abaData === filtroDataSel) || (r.abaData === "Hoje" && filtroDataSel === hojeInput);
+                let driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
+                return dataMatch && driverMatch && !r.concluida && !r.devolvida;
+            });
+
+            if (pendentes.length <= 1) {
+                alert("É necessário ter pelo menos 2 entregas pendentes para otimizar a sequência.");
+                return;
+            }
+
+            // Agrupa por Bairro e reordena em lote
+            pendentes.sort((a, b) => (a.bairro || "").localeCompare(b.bairro || "") || (a.rua || "").localeCompare(b.rua || ""));
+
+            let idx = 1;
+            pendentes.forEach(item => {
+                update(ref(db, 'entregas/' + item.id), { sequencia: idx });
+                idx++;
+            });
+
+            alert(`🚀 Sequência de ${pendentes.length} entregas otimizada com sucesso!`);
+        }
+
         window.tirarFotoEntrega = function(id) {
             entregaIdParaFoto = id;
             document.getElementById('camera-input').click();
@@ -835,7 +864,6 @@
             }
         }
 
-        // LÓGICA DO CANVAS DE ASSINATURA DIGITAL
         let canvas, ctx, desenhando = false;
 
         function inicializarCanvas() {
@@ -1555,7 +1583,6 @@
                     });
                 }
 
-                // Renderização das fotos/assinatura gravadas
                 let htmlComprovantes = "";
                 if (rota.fotoComprovante || rota.assinaturaDigital) {
                     htmlComprovantes += `<div class="comprovantes-preview-container">`;
@@ -1683,4 +1710,4 @@
         }
     </script>
 </body>
-</html>   
+</html>
