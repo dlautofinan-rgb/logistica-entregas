@@ -40,7 +40,6 @@
             box-sizing: border-box;
         }
 
-        /* Indicador de Status Offline */
         .offline-badge {
             display: none;
             background-color: var(--danger);
@@ -53,7 +52,6 @@
             margin-bottom: 10px;
         }
 
-        /* Cabeçalho com Botão de 3 Pontinhos */
         .app-header {
             display: flex;
             justify-content: space-between;
@@ -108,7 +106,6 @@
         .dropdown-menu button:last-child { border-bottom: none; }
         .dropdown-menu button:hover { background-color: #f1f3f5; }
 
-        /* Painel de Backup */
         .backup-container {
             background-color: var(--card-bg);
             padding: 12px;
@@ -121,12 +118,7 @@
             justify-content: space-between;
             border: 1px dashed #ccc;
         }
-        .backup-title {
-            font-size: 13px;
-            font-weight: bold;
-            margin: 0;
-            color: #555;
-        }
+        .backup-title { font-size: 13px; font-weight: bold; margin: 0; color: #555; }
         .backup-buttons { display: flex; gap: 8px; }
         .btn-backup {
             padding: 8px 12px;
@@ -151,7 +143,6 @@
             z-index: 1;
         }
 
-        /* Controles Principais */
         .controls-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -171,7 +162,6 @@
             height: 48px;
         }
 
-        /* ABA BAIRRO */
         .tabs-bairros-container {
             display: flex;
             gap: 8px;
@@ -213,15 +203,11 @@
         .form-group { margin-bottom: 12px; position: relative; }
         .form-group.full-width { grid-column: span 2; }
         
-        .form-group label { 
-            display: block; font-weight: 600; margin-bottom: 4px; font-size: 12px; color: #666;
-        }
-        
+        .form-group label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 12px; color: #666; }
         .form-group input, .form-group textarea, .form-group select {
             width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; background-color: #fdfdfd;
         }
 
-        /* Peças e Pagamentos */
         .pecas-container, .pagamentos-container {
             background: #f1f3f5; padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0;
         }
@@ -287,6 +273,14 @@
         .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
         .config-group input, .config-group select { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; background-color: white; }
 
+        /* Estilos dos Comprovantes no Card */
+        .comprovantes-preview-container {
+            display: flex; gap: 8px; margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 8px;
+        }
+        .comprovante-thumb {
+            width: 70px; height: 70px; border-radius: 6px; object-fit: cover; border: 1px solid #ccc; cursor: pointer; background-color: #eee;
+        }
+
         .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
         .btn-action { flex: 1; min-width: 65px; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; }
         .btn-gps { background-color: var(--info); color: white; }
@@ -294,11 +288,12 @@
         .btn-edit { background-color: var(--warning); color: #212529; }
         .btn-check { background-color: var(--success); color: white; }
         .btn-devolucao { background-color: var(--devolucao); color: white; }
+        .btn-camera { background-color: #6f42c1; color: white; }
+        .btn-assinatura { background-color: #fd7e14; color: white; }
         .btn-delete { background-color: #f8d7da; color: var(--danger); flex: 0 0 35px; min-width: auto; }
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
 
-        /* Painel de Pagamentos */
         .painel-pagamentos-resumo { background-color: var(--card-bg); border-radius: 12px; padding: 16px; margin-top: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e9d5ff; }
         .painel-pagamentos-resumo h3 { margin-top: 0; margin-bottom: 12px; font-size: 16px; color: #6b21a8; border-bottom: 2px solid #e9d5ff; padding-bottom: 6px; }
         .resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -306,7 +301,6 @@
         .resumo-item-label { font-size: 11px; font-weight: bold; color: #6b21a8; text-transform: uppercase; }
         .resumo-item-valor { font-size: 16px; font-weight: 800; color: #222; margin-top: 2px; }
 
-        /* Aba KM */
         #view-km, #view-suporte, #view-clientes { display: none; }
 
         .km-dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
@@ -326,6 +320,11 @@
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
 
+        /* Canvas da Assinatura */
+        #signature-pad {
+            border: 2px dashed #007BFF; border-radius: 8px; width: 100%; height: 200px; background: #fafafa; touch-action: none; cursor: crosshair;
+        }
+
         .motivos-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .btn-motivo-opcao { background-color: #f8f9fa; border: 2px solid #e9ecef; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: bold; color: #333; text-align: left; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 10px; }
         .btn-motivo-opcao:hover { border-color: var(--devolucao); background-color: #fffaf5; color: var(--devolucao); }
@@ -340,6 +339,8 @@
     </style>
 </head>
 <body>
+
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;" onchange="salvarFotoCapturada(event)">
 
     <div id="offline-alert" class="offline-badge">⚡ Você está em modo offline. O aplicativo continua funcionando normalmente!</div>
 
@@ -584,6 +585,24 @@
         <div id="container-suporte"></div>
     </div>
 
+    <div id="modal-assinatura" class="modal-edit">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✍️ Assinatura do Cliente</h3>
+                <button type="button" class="close-modal" onclick="fecharModalAssinatura()">×</button>
+            </div>
+            <input type="hidden" id="assinatura-id-entrega">
+            <p style="font-size: 12px; color: #666; margin-top: 0;">Solicite ao cliente que assine abaixo utilizando o dedo:</p>
+            
+            <canvas id="signature-pad"></canvas>
+
+            <div style="display: flex; gap: 8px; margin-top: 15px;">
+                <button type="button" class="btn" style="background-color: #6c757d; color: white;" onclick="limparCanvasAssinatura()">🧹 Limpar</button>
+                <button type="button" class="btn btn-submit" onclick="salvarAssinaturaDigital()">💾 Salvar Assinatura</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-motivos-devolucao" class="modal-edit">
         <div class="modal-content">
             <div class="modal-header">
@@ -647,11 +666,10 @@
     </div>
 
     <script>
-        // Registro do Service Worker Offline
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'dl-rotas-cache-v1';
+                    const CACHE_NAME = 'dl-rotas-cache-v2';
                     const urlsToCache = [
                         './',
                         'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
@@ -659,33 +677,25 @@
                     ];
 
                     self.addEventListener('install', event => {
-                        event.waitUntil(
-                            caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-                        );
+                        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
                     });
 
                     self.addEventListener('fetch', event => {
-                        event.respondWith(
-                            caches.match(event.request).then(response => {
-                                return response || fetch(event.request);
-                            }).catch(() => caches.match('./'))
-                        );
+                        event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)).catch(() => caches.match('./')));
                     });
                 `;
                 const blob = new Blob([swCode], { type: 'text/javascript' });
                 const blobUrl = URL.createObjectURL(blob);
                 
                 navigator.serviceWorker.register(blobUrl).then(reg => {
-                    console.log('PWA Service Worker registrado com sucesso!');
-                }).catch(err => console.log('Erro no PWA Service Worker:', err));
+                    console.log('PWA Service Worker Ativo!');
+                }).catch(err => console.log('Erro no PWA:', err));
             });
         }
 
-        // Detectar modo Offline/Online
         window.addEventListener('online', () => document.getElementById('offline-alert').style.display = 'none');
         window.addEventListener('offline', () => document.getElementById('offline-alert').style.display = 'block');
 
-        // Botão de Instalação PWA
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -736,6 +746,7 @@
         let listaClientes = {}; 
         let listaSuporte = [];
         let bairroSelecionado = "Todos"; 
+        let entregaIdParaFoto = null;
 
         const fusoLocal = new Date();
         const offset = fusoLocal.getTimezoneOffset();
@@ -803,6 +814,80 @@
 
         function formatarDataHoraCard(dataString) { 
             return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
+        }
+
+        // FUNÇÕES PARA FOTO E ASSINATURA DIGITAL
+        window.tirarFotoEntrega = function(id) {
+            entregaIdParaFoto = id;
+            document.getElementById('camera-input').click();
+        }
+
+        window.salvarFotoCapturada = function(e) {
+            const file = e.target.files[0];
+            if (file && entregaIdParaFoto) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const base64Data = event.target.result;
+                    update(ref(db, 'entregas/' + entregaIdParaFoto), { fotoComprovante: base64Data });
+                    entregaIdParaFoto = null;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // LÓGICA DO CANVAS DE ASSINATURA DIGITAL
+        let canvas, ctx, desenhando = false;
+
+        function inicializarCanvas() {
+            canvas = document.getElementById('signature-pad');
+            ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "#000";
+
+            function getPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            }
+
+            function startDraw(e) { desenhando = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); }
+            function moveDraw(e) { if(!desenhando) return; const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
+            function stopDraw() { desenhando = false; }
+
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', moveDraw);
+            canvas.addEventListener('mouseup', stopDraw);
+
+            canvas.addEventListener('touchstart', startDraw);
+            canvas.addEventListener('touchmove', moveDraw);
+            canvas.addEventListener('touchend', stopDraw);
+        }
+
+        window.abrirModalAssinatura = function(id) {
+            document.getElementById('assinatura-id-entrega').value = id;
+            document.getElementById('modal-assinatura').style.display = 'flex';
+            setTimeout(inicializarCanvas, 200);
+        }
+
+        window.fecharModalAssinatura = function() {
+            document.getElementById('modal-assinatura').style.display = 'none';
+        }
+
+        window.limparCanvasAssinatura = function() {
+            if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        window.salvarAssinaturaDigital = function() {
+            const id = document.getElementById('assinatura-id-entrega').value;
+            if (id && canvas) {
+                const assinaturaBase64 = canvas.toDataURL();
+                update(ref(db, 'entregas/' + id), { assinaturaDigital: assinaturaBase64 });
+                fecharModalAssinatura();
+            }
         }
 
         const DISTANCIA_ESTIMADA_POR_ENTREGA_KM = 8.5; 
@@ -1071,7 +1156,9 @@
                 devolvida: false,
                 motivoDevolucao: "",
                 horaSaida: "", 
-                horaChegada: "" 
+                horaChegada: "",
+                fotoComprovante: "",
+                assinaturaDigital: ""
             };
 
             set(ref(db, 'entregas/' + idGerado), novaRota);
@@ -1468,6 +1555,19 @@
                     });
                 }
 
+                // Renderização das fotos/assinatura gravadas
+                let htmlComprovantes = "";
+                if (rota.fotoComprovante || rota.assinaturaDigital) {
+                    htmlComprovantes += `<div class="comprovantes-preview-container">`;
+                    if (rota.fotoComprovante) {
+                        htmlComprovantes += `<img src="${rota.fotoComprovante}" class="comprovante-thumb" onclick="window.open('${rota.fotoComprovante}')" title="Foto do Comprovante">`;
+                    }
+                    if (rota.assinaturaDigital) {
+                        htmlComprovantes += `<img src="${rota.assinaturaDigital}" class="comprovante-thumb" onclick="window.open('${rota.assinaturaDigital}')" title="Assinatura do Cliente">`;
+                    }
+                    htmlComprovantes += `</div>`;
+                }
+
                 container.innerHTML += `
                     <div class="delivery-card ${classeEstado}">
                         <div class="card-header">
@@ -1495,6 +1595,8 @@
                             ${rota.obs ? `<p class="obs-alert">⚠️ <strong>Obs:</strong> ${rota.obs}</p>` : ''}
                             ${rota.motivoDevolucao ? `<span class="motivo-alert">🚫 Motivo Recusa: ${rota.motivoDevolucao}</span>` : ''}
                             
+                            ${htmlComprovantes}
+
                             <div class="driver-status-section">
                                 <div class="config-row">
                                     <div class="config-group">
@@ -1525,6 +1627,8 @@
                         <div class="card-actions">
                             <button class="btn-action btn-gps" onclick="abrirNoGps('${rota.rua}', '${rota.cidade}')">🗺️ GPS</button>
                             ${contatoComprador ? `<button class="btn-action btn-whatsapp" onclick="abrirContato('${contatoComprador}')">💬 Contato</button>` : ''}
+                            <button class="btn-action btn-camera" onclick="tirarFotoEntrega('${rota.id}')">📷 Foto</button>
+                            <button class="btn-action btn-assinatura" onclick="abrirModalAssinatura('${rota.id}')">✍️ Assinar</button>
                             <button class="btn-action btn-edit" onclick="abrirModalEditar('${rota.id}')">✍️ Editar</button>
                             <button class="btn-action btn-check" onclick="alternarConclusao('${rota.id}')">${textoBotaoConcluir}</button>
                             <button class="btn-action btn-devolucao" onclick="alternarDevolucao('${rota.id}')">${textoBotaoDevolucao}</button>
@@ -1579,4 +1683,4 @@
         }
     </script>
 </body>
-</html>
+</html>   
