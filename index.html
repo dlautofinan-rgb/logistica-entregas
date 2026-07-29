@@ -163,6 +163,17 @@
             height: 48px;
         }
 
+        .btn-clear-date {
+            grid-column: span 2;
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #e9ecef;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
         .tabs-bairros-container {
             display: flex;
             gap: 8px;
@@ -276,14 +287,14 @@
         .config-group input, .config-group select { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; background-color: white; }
 
         .comprovantes-preview-container {
-            display: flex; gap: 8px; margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 8px;
+            display: flex; gap: 8px; margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 8px; flex-wrap: wrap; align-items: center;
         }
         .comprovante-thumb {
             width: 70px; height: 70px; border-radius: 6px; object-fit: cover; border: 1px solid #ccc; cursor: pointer; background-color: #eee;
         }
 
         .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
-        .btn-action { flex: 1; min-width: 65px; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .btn-action { flex: 1; min-width: 65px; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; text-decoration: none; text-align: center; }
         .btn-gps { background-color: var(--info); color: white; }
         .btn-whatsapp { background-color: var(--whatsapp); color: white; }
         .btn-edit { background-color: var(--warning); color: #212529; }
@@ -291,6 +302,7 @@
         .btn-devolucao { background-color: var(--devolucao); color: white; }
         .btn-camera { background-color: #6f42c1; color: white; }
         .btn-assinatura { background-color: #fd7e14; color: white; }
+        .btn-pdf-view { background-color: #e74c3c; color: white; text-decoration: none; }
         .btn-delete { background-color: #f8d7da; color: var(--danger); flex: 0 0 35px; min-width: auto; }
 
         .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
@@ -369,10 +381,12 @@
         <div class="controls-container">
             <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltrosPrincipais()">
             <select id="filter-driver" class="select-custom" onchange="alterarFiltrosPrincipais()">
+                <option value="Todos">Todos os Motoristas</option>
                 <option value="Carlos">Carlos</option>
                 <option value="Luiz Marcelo">Luiz Marcelo</option>
                 <option value="Barbosa">Barbosa</option>
             </select>
+            <button class="btn-clear-date" onclick="limparFiltroData()">📅 Mostrar Entregas de Todas as Datas</button>
         </div>
 
         <div class="tabs-bairros-container" id="bairros-tabs-container"></div>
@@ -432,29 +446,55 @@
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group"><label>CEP:</label><input type="text" id="f-cep" required></div>
-                    <div class="form-group"><label>Bairro:</label><input type="text" id="f-bairro" placeholder="Ex: Uvaranas" required></div>
+                    <div class="form-group">
+                        <label>Bairro:</label>
+                        <input type="text" id="f-bairro" required>
+                    </div>
+                    <div class="form-group">
+                        <label>CEP:</label>
+                        <input type="text" id="f-cep" onblur="buscarEnderecoPorCEP(this.value, 'f-ruas', 'f-cidade', 'f-bairro')">
+                    </div>
                 </div>
-                
+
                 <div class="form-row">
-                    <div class="form-group"><label>Posição na Rota (Sequência):</label><input type="number" id="f-sequencia" placeholder="Ex: 1" min="1"></div>
-                    <div class="form-group"><label>Cidade:</label><input type="text" id="f-cidade" required></div>
+                    <div class="form-group">
+                        <label>Cidade:</label>
+                        <input type="text" id="f-cidade" value="Castro - PR" required>
+                    </div>
+                    <div class="form-group">
+                        <label>🔢 Posição/Sequência:</label>
+                        <input type="number" id="f-sequencia" placeholder="Auto" min="1">
+                    </div>
                 </div>
-                
-                <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="f-ruas" required></div>
-                <div class="form-group full-width"><label>Observações:</label><textarea id="f-obs" rows="2"></textarea></div>
-                
-                <button type="submit" class="btn btn-submit">Adicionar à Rota</button>
+
+                <div class="form-group full-width">
+                    <label>Rua e Número:</label>
+                    <input type="text" id="f-ruas" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Observações:</label>
+                    <textarea id="f-obs" rows="2" placeholder="Informações de entrega, referências, etc..."></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>📑 Anexar PDF do Papel/Conta da Loja (Opcional):</label>
+                    <input type="file" id="f-pdf" accept="application/pdf">
+                </div>
+
+                <button type="submit" class="btn btn-submit">Cadastrar Entrega</button>
             </form>
         </div>
 
-        <div class="total-badge" id="total-entregas">Total: 0 entregas</div>
+        <div class="total-badge" id="total-entregas-badge">0 entregas no total</div>
+        
+        <div id="route-list"></div>
 
-        <div class="lista-entregas" id="container-entregas"></div>
+        <button type="button" class="btn btn-danger-all" onclick="apagarTodasRotas()">🗑️ Apagar Todas as Entregas do Sistema</button>
 
         <div class="painel-pagamentos-resumo">
-            <h3>💰 Painel de Pagamentos do Dia</h3>
-            <div class="resumo-grid" id="painel-resumo-pagamentos">
+            <h3>💰 Resumo Financeiro do Filtro Atual</h3>
+            <div class="resumo-grid">
                 <div class="resumo-item">
                     <div class="resumo-item-label">PIX</div>
                     <div class="resumo-item-valor" id="resumo-pix">R$ 0,00</div>
@@ -471,168 +511,119 @@
                     <div class="resumo-item-label">Débito</div>
                     <div class="resumo-item-valor" id="resumo-debito">R$ 0,00</div>
                 </div>
-                <div class="resumo-item" style="grid-column: span 2; background-color: #f5f3ff; border-left-color: #8b5cf6;">
-                    <div class="resumo-item-label" style="color: #7c3aed;">Total Geral Arrecadado</div>
-                    <div class="resumo-item-valor" id="resumo-total-geral" style="font-size: 20px; color: #5b21b6;">R$ 0,00</div>
+                <div class="resumo-item" style="grid-column: span 2; background-color: #f3e8ff; border-left-color: #7e22ce;">
+                    <div class="resumo-item-label" style="color: #7e22ce;">Total Geral Calculado</div>
+                    <div class="resumo-item-valor" id="resumo-total-geral" style="font-size: 20px; color: #581c87;">R$ 0,00</div>
                 </div>
             </div>
         </div>
-
-        <button class="btn btn-danger-all" onclick="excluirTudo()">⚠️ Limpar Todo o Histórico</button>
     </div>
 
     <div id="view-km">
-        <div class="form-container" style="margin-bottom: 12px;">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Mês de Referência:</label>
-                    <input type="month" id="km-filter-month" class="input-date-custom" onchange="calcularRelatorioKM()">
-                </div>
-                <div class="form-group">
-                    <label>Motorista:</label>
-                    <select id="km-filter-driver" class="select-custom" onchange="calcularRelatorioKM()">
-                        <option value="Todos">Todos os Motoristas</option>
-                        <option value="Carlos">Carlos</option>
-                        <option value="Luiz Marcelo">Luiz Marcelo</option>
-                        <option value="Barbosa">Barbosa</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div class="km-dashboard">
-            <div class="km-card km-card-full">
-                <div class="km-card-title">Total Estimado no Mês</div>
-                <div class="km-card-value" id="km-val-total">0,0 KM</div>
-                <div class="km-card-sub" id="km-sub-dias">Calculado em 0 dia(s) com entregas</div>
-            </div>
-            <div class="km-card">
-                <div class="km-card-title">Média Diária</div>
-                <div class="km-card-value" id="km-val-media-dia">0,0 KM</div>
-                <div class="km-card-sub">por dia trabalhado</div>
-            </div>
-            <div class="km-card">
-                <div class="km-card-title">Média por Entrega</div>
-                <div class="km-card-value" id="km-val-media-entrega">0,0 KM</div>
-                <div class="km-card-sub">por ponto atendido</div>
-            </div>
-        </div>
-
         <div class="form-container">
-            <h3>📅 Detalhado por Dia</h3>
-            <table class="km-table">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Entregas</th>
-                        <th>KM Estimado</th>
-                    </tr>
-                </thead>
-                <tbody id="km-table-body">
-                    <tr><td colspan="3" style="text-align:center; color:#888;">Carregando dados...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="view-clientes">
-        <div class="form-container">
-            <h3>🔍 Pesquisar Cliente Cadastrado</h3>
-            <div class="form-group full-width">
-                <input type="text" id="busca-cliente-input" placeholder="Digite o nome do cliente..." oninput="renderizarClientes(this.value)">
-            </div>
-        </div>
-        <div class="total-badge" id="total-clientes-badge">Clientes: 0</div>
-        <div id="container-clientes"></div>
-    </div>
-
-    <div id="view-suporte">
-        <div class="form-container">
-            <h3>🚨 Abrir Nova Ocorrência / Suporte</h3>
-            <form id="sup-form" onsubmit="enviarOcorrencia(event)">
+            <h3>🚙 Registro Diário de Quilometragem</h3>
+            <form id="km-form" onsubmit="registrarKm(event)">
                 <div class="form-row">
                     <div class="form-group">
+                        <label>Data:</label>
+                        <input type="date" id="km-data" required>
+                    </div>
+                    <div class="form-group">
                         <label>Motorista:</label>
-                        <select id="sup-motorista" required>
+                        <select id="km-motorista" required>
                             <option value="Carlos">Carlos</option>
                             <option value="Luiz Marcelo">Luiz Marcelo</option>
                             <option value="Barbosa">Barbosa</option>
                         </select>
                     </div>
+                </div>
+                <div class="form-row">
                     <div class="form-group">
-                        <label>Tipo de Ocorrência:</label>
-                        <select id="sup-tipo" required>
-                            <option value="Devolução">Devolução</option>
-                            <option value="Reclamação">Reclamação</option>
-                            <option value="Mercado / Compra">Mercado / Compra</option>
-                            <option value="Confirmação de PGTO">Confirmação de PGTO</option>
-                            <option value="Cliente Ausente">Cliente Ausente</option>
-                            <option value="Outros">Outros</option>
-                        </select>
+                        <label>KM Inicial (Saída):</label>
+                        <input type="number" id="km-inicial" required placeholder="Ex: 102500">
+                    </div>
+                    <div class="form-group">
+                        <label>KM Final (Chegada):</label>
+                        <input type="number" id="km-final" required placeholder="Ex: 102680">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Cliente / Referência:</label>
-                    <input type="text" id="sup-cliente" placeholder="Ex: Mercado Silva ou Nome do Cliente" required>
-                </div>
-                <div class="form-group full-width">
-                    <label>Descrição do Problema / Detalhes:</label>
-                    <textarea id="sup-obs" rows="3" placeholder="Descreva o que ocorreu..." required></textarea>
-                </div>
-                <button type="submit" class="btn btn-submit" style="background-color: var(--devolucao);">Registrar Ocorrência</button>
+                <button type="submit" class="btn btn-submit" style="background-color: var(--km-color);">Salvar Registro de KM</button>
             </form>
         </div>
 
-        <div class="total-badge">📋 Registros de Suporte</div>
-        <div id="container-suporte"></div>
-    </div>
-
-    <div id="modal-assinatura" class="modal-edit">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>✍️ Assinatura do Cliente</h3>
-                <button type="button" class="close-modal" onclick="fecharModalAssinatura()">×</button>
-            </div>
-            <input type="hidden" id="assinatura-id-entrega">
-            <p style="font-size: 12px; color: #666; margin-top: 0;">Solicite ao cliente que assine abaixo utilizando o dedo:</p>
-            
-            <canvas id="signature-pad"></canvas>
-
-            <div style="display: flex; gap: 8px; margin-top: 15px;">
-                <button type="button" class="btn" style="background-color: #6c757d; color: white;" onclick="limparCanvasAssinatura()">🧹 Limpar</button>
-                <button type="button" class="btn btn-submit" onclick="salvarAssinaturaDigital()">💾 Salvar Assinatura</button>
+        <div class="km-dashboard">
+            <div class="km-card km-card-full">
+                <div class="km-card-title">Total KM Rodados (Mês Atual)</div>
+                <div class="km-card-value" id="km-total-mes">0 km</div>
+                <div class="km-card-sub" id="km-sub-mes">Calculado com base nas medições informadas</div>
             </div>
         </div>
+
+        <h3>📋 Histórico de Registros</h3>
+        <table class="km-table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Motorista</th>
+                    <th>Início</th>
+                    <th>Fim</th>
+                    <th>Rodado</th>
+                </tr>
+            </thead>
+            <tbody id="km-table-body">
+                <tr><td colspan="5" style="text-align: center; color: #888;">Nenhum registro encontrado.</td></tr>
+            </tbody>
+        </table>
     </div>
 
-    <div id="modal-motivos-devolucao" class="modal-edit">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>⚠️ Selecione o Motivo da Recusa</h3>
-                <button type="button" class="close-modal" onclick="fecharModalMotivos()">×</button>
-            </div>
-            <input type="hidden" id="motivo-id-entrega">
-            <p style="font-size: 13px; color: #666; margin-top: 0;">Clique em uma das opções abaixo para registrar:</p>
-            
-            <div class="motivos-grid">
-                <button type="button" class="btn-motivo-opcao" onclick="confirmarDevolucaoComMotivo('Cliente não quis devido a detalhes')">🔍 1. Cliente não quis devido a detalhes</button>
-                <button type="button" class="btn-motivo-opcao" onclick="confirmarDevolucaoComMotivo('Cliente não quis por ser modelo diferente')">🚗 2. Cliente não quis por ser modelo diferente</button>
-                <button type="button" class="btn-motivo-opcao" onclick="confirmarDevolucaoComMotivo('Cliente não quis pagar')">💸 3. Cliente não quis pagar</button>
+    <div id="view-clientes">
+        <div class="form-container">
+            <h3>🔍 Pesquisar Cliente / Histórico</h3>
+            <div class="form-group">
+                <input type="text" id="busca-cliente-input" placeholder="Digite o nome do cliente..." oninput="filtrarListaClientes(this.value)">
             </div>
         </div>
+        <div id="clientes-lista-container"></div>
     </div>
 
-    <div id="modal-editar-entrega" class="modal-edit">
+    <div id="view-suporte">
+        <div class="form-container">
+            <h3>🎧 Central de Suporte & Ocorrências</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">Se houver divergências, trocas ou solicitações da equipe, registre abaixo:</p>
+            <form id="suporte-form" onsubmit="registrarOcorrenciaSuporte(event)">
+                <div class="form-group">
+                    <label>Título / Assunto:</label>
+                    <input type="text" id="sup-titulo" placeholder="Ex: Peça Incompatível / Cliente Ausente" required>
+                </div>
+                <div class="form-group">
+                    <label>Detalhes da Ocorrência:</label>
+                    <textarea id="sup-obs" rows="3" required placeholder="Descreva o problema em detalhes..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-submit" style="background-color: var(--devolucao);">Enviar Registro de Suporte</button>
+            </form>
+        </div>
+
+        <h3>📌 Ocorrências Registradas</h3>
+        <div id="suporte-lista-container"></div>
+    </div>
+
+    <div id="modal-editar" class="modal-edit">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>✍️ Editar Entrega</h3>
-                <button type="button" class="close-modal" onclick="fecharModalEditar()">×</button>
+                <h3 style="margin: 0;">✏️ Editar Entrega</h3>
+                <button class="close-modal" onclick="fecharModalEditar()">×</button>
             </div>
-            <form id="edit-form" onsubmit="salvarEdicaoEntrega(event)">
+            <form id="edit-route-form" onsubmit="salvarEdicaoRota(event)">
                 <input type="hidden" id="e-id">
                 <div class="form-row">
-                    <div class="form-group"><label>Cliente:</label><input type="text" id="e-cliente" required></div>
-                    <div class="form-group"><label>Contato:</label><input type="text" id="e-contato"></div>
+                    <div class="form-group">
+                        <label>Cliente:</label>
+                        <input type="text" id="e-cliente" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contato:</label>
+                        <input type="text" id="e-contato">
+                    </div>
                 </div>
 
                 <div class="pecas-container">
@@ -645,58 +636,137 @@
 
                 <div class="pagamentos-container">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label>Pagamentos Múltiplos:</label>
+                        <label>Pagamentos:</label>
                         <button type="button" class="btn-mini btn-add-pagto" onclick="adicionarLinhaPagamento('e-pagamentos-list')">➕ Add Pagamento</button>
                     </div>
                     <div id="e-pagamentos-list"></div>
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group"><label>CEP:</label><input type="text" id="e-cep" required></div>
-                    <div class="form-group"><label>Bairro:</label><input type="text" id="e-bairro" required></div>
+                    <div class="form-group">
+                        <label>Bairro:</label>
+                        <input type="text" id="e-bairro" required>
+                    </div>
+                    <div class="form-group">
+                        <label>CEP:</label>
+                        <input type="text" id="e-cep">
+                    </div>
                 </div>
+
                 <div class="form-row">
-                    <div class="form-group"><label>Sequência da Rota:</label><input type="number" id="e-sequencia" min="1"></div>
-                    <div class="form-group"><label>Cidade:</label><input type="text" id="e-cidade" required></div>
+                    <div class="form-group">
+                        <label>Cidade:</label>
+                        <input type="text" id="e-cidade" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Posição / Sequência:</label>
+                        <input type="number" id="e-sequencia" min="1">
+                    </div>
                 </div>
-                <div class="form-group full-width"><label>Rua e Número:</label><input type="text" id="e-ruas" required></div>
-                <div class="form-group full-width"><label>Observações:</label><textarea id="e-obs" rows="2"></textarea></div>
-                
+
+                <div class="form-group full-width">
+                    <label>Rua e Número:</label>
+                    <input type="text" id="e-ruas" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Observações:</label>
+                    <textarea id="e-obs" rows="2"></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>📑 Atualizar/Anexar PDF da Conta/Papel:</label>
+                    <input type="file" id="e-pdf" accept="application/pdf">
+                </div>
+
                 <button type="submit" class="btn btn-submit" style="background-color: var(--success); width: 100%;">Salvar Alterações</button>
             </form>
         </div>
     </div>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                const swCode = `
-                    const CACHE_NAME = 'dl-rotas-cache-v2';
-                    const urlsToCache = [
-                        './',
-                        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-                        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-                    ];
+    <div id="modal-assinatura" class="modal-edit">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin: 0;">✍️ Assinatura do Comprador</h3>
+                <button class="close-modal" onclick="fecharModalAssinatura()">×</button>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 0;">Solicite a assinatura do comprador abaixo para confirmar a entrega ou autorizar a devolução:</p>
+            <canvas id="signature-pad"></canvas>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <button type="button" class="btn" style="background-color: #6c757d; color: white;" onclick="limparAssinatura()">🧹 Limpar</button>
+                <button type="button" class="btn btn-submit" onclick="salvarAssinatura()">💾 Confirmar Assinatura</button>
+            </div>
+        </div>
+    </div>
 
-                    self.addEventListener('install', event => {
-                        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
-                    });
+    <div id="modal-motivo" class="modal-edit">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin: 0;">🔄 Motivo da Devolução</h3>
+                <button class="close-modal" onclick="fecharModalMotivo()">×</button>
+            </div>
+            <p style="font-size: 12px; color: #666;">Selecione ou digite o motivo da devolução para registrar no sistema:</p>
+            
+            <div class="motivos-grid">
+                <button class="btn-motivo-opcao" onclick="confirmarDevolucao('Peça Errada / Incompatível')">❌ Peça Errada / Incompatível</button>
+                <button class="btn-motivo-opcao" onclick="confirmarDevolucao('Defeito de Fabricação')">🛠️ Defeito de Fabricação</button>
+                <button class="btn-motivo-opcao" onclick="confirmarDevolucao('Cliente Desistiu da Compra')">👤 Cliente Desistiu da Compra</button>
+                <button class="btn-motivo-opcao" onclick="confirmarDevolucao('Valor / Condição Divergente')">💲 Valor Divergente</button>
+            </div>
 
-                    self.addEventListener('fetch', event => {
-                        event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)).catch(() => caches.match('./')));
-                    });
-                `;
-                const blob = new Blob([swCode], { type: 'text/javascript' });
-                const blobUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(blobUrl).then(reg => {
-                    console.log('PWA Service Worker Ativo!');
-                }).catch(err => console.log('Erro no PWA:', err));
-            });
+            <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 12px;">
+                <label style="font-size: 12px; font-weight: bold; color: #495057;">Ou digite outro motivo específico:</label>
+                <input type="text" id="motivo-customizado-input" placeholder="Ex: Faltou parafuso de fixação" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; margin-top: 6px; box-sizing: border-box;">
+                <button type="button" class="btn btn-submit" style="background-color: var(--devolucao); margin-top: 8px;" onclick="confirmarDevolucaoCustomizada()">Confirmar Devolução</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, push, remove, update, get, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com" || "https://minha-rota-3467e-default-rtdb.firebaseio.com/" || "https://dlrotas-default-rtdb.firebaseio.com/"
+        };
+
+        let app, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getDatabase(app);
+        } catch(e) {
+            console.error("Erro ao inicializar Firebase:", e);
         }
 
-        window.addEventListener('online', () => document.getElementById('offline-alert').style.display = 'none');
-        window.addEventListener('offline', () => document.getElementById('offline-alert').style.display = 'block');
+        let rotas = [];
+        let registrosKm = [];
+        let ocorrenciasSuporte = [];
+        let map;
+        let markers = [];
+        let activeBairroFilter = 'TODOS';
+        let idRotaAtualAcao = null;
+        let isDevolucaoFlow = false;
+
+        const dHoje = new Date();
+        const ano = dHoje.getFullYear();
+        const mes = String(dHoje.getMonth() + 1).padStart(2, '0');
+        const dia = String(dHoje.getDate()).padStart(2, '0');
+        const hojeISO = `${ano}-${mes}-${dia}`;
+
+        document.getElementById('km-data').value = hojeISO;
+
+        function initMap() {
+            if (!map && document.getElementById('map')) {
+                try {
+                    map = L.map('map').setView([-24.7911, -50.0119], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap'
+                    }).addTo(map);
+                } catch(e) { console.error("Erro mapa:", e); }
+            }
+        }
+        initMap();
 
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -706,502 +776,336 @@
             if(pwaBtn) pwaBtn.style.display = 'block';
         });
 
-        function instalarPwaApp() {
+        window.instalarPwaApp = function() {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        document.getElementById('pwa-install-btn').style.display = 'none';
-                    }
-                    deferredPrompt = null;
-                });
+                deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
             }
-        }
-    </script>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCuFiZ4H9u3-od3lVXy2BXLiPHmnQRw1Lw",
-            authDomain: "dl-auto-33f62.firebaseapp.com",
-            databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com", 
-            projectId: "dl-auto-33f62",
-            storageBucket: "dl-auto-33f62.firebasestorage.app",
-            messagingSenderId: "81729132461",
-            appId: "1:81729132461:web:35c1579e8b3d4f91863324"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const rotasRef = ref(db, 'entregas');
-        const clientesRef = ref(db, 'clientes');
-        const suporteRef = ref(db, 'suporte');
+        let canvas, ctx;
+        let isDrawing = false;
 
-        const map = L.map('map').setView([-23.5505, -46.6333], 4); 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-
-        let rotas = [];
-        let listaClientes = {}; 
-        let listaSuporte = [];
-        let bairroSelecionado = "Todos"; 
-        let entregaIdParaFoto = null;
-
-        const fusoLocal = new Date();
-        const offset = fusoLocal.getTimezoneOffset();
-        const dataLocalAjustada = new Date(fusoLocal.getTime() - (offset * 60 * 1000));
-        const hojeInput = dataLocalAjustada.toISOString().split('T')[0];
-        
-        document.getElementById('filter-date').value = hojeInput;
-        document.getElementById('km-filter-month').value = hojeInput.substring(0, 7);
-
-        window.toggleMenu = function() {
-            const menu = document.getElementById('dropdown-menu');
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-        }
-
-        window.trocarAba = function(aba) {
-            document.getElementById('dropdown-menu').style.display = 'none';
-            document.getElementById('view-entregas').style.display = 'none';
-            document.getElementById('view-km').style.display = 'none';
-            document.getElementById('view-suporte').style.display = 'none';
-            document.getElementById('view-clientes').style.display = 'none';
-
-            if(aba === 'entregas') {
-                document.getElementById('view-entregas').style.display = 'block';
-                document.getElementById('app-title').innerText = "📦 Logística de Entregas";
-            } else if(aba === 'km') {
-                document.getElementById('view-km').style.display = 'block';
-                document.getElementById('app-title').innerText = "📊 Relatório de KM Rodados";
-                calcularRelatorioKM();
-            } else if(aba === 'clientes') {
-                document.getElementById('view-clientes').style.display = 'block';
-                document.getElementById('app-title').innerText = "👥 Clientes Cadastrados";
-                renderizarClientes();
-            } else {
-                document.getElementById('view-suporte').style.display = 'block';
-                document.getElementById('app-title').innerText = "🎧 Suporte & Ocorrências";
-            }
-        }
-
-        document.addEventListener('click', function(e) {
-            if(!e.target.classList.contains('menu-btn')) {
-                document.getElementById('dropdown-menu').style.display = 'none';
-            }
-        });
-
-        onValue(rotasRef, (snapshot) => {
-            const dados = snapshot.val();
-            rotas = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
-            atualizarAbasBairros();
-            renderizarCards();
-            if(document.getElementById('view-km').style.display === 'block') calcularRelatorioKM();
-            if(document.getElementById('view-clientes').style.display === 'block') renderizarClientes();
-        });
-
-        onValue(clientesRef, (snapshot) => {
-            const dados = snapshot.val();
-            listaClientes = dados ? dados : {};
-            if(document.getElementById('view-clientes').style.display === 'block') renderizarClientes();
-        });
-
-        onValue(suporteRef, (snapshot) => {
-            const dados = snapshot.val();
-            listaSuporte = dados ? Object.keys(dados).map(key => ({ id: key, ...dados[key] })) : [];
-            renderizarSuporte();
-        });
-
-        function formatarDataHoraCard(dataString) { 
-            return new Date(dataString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); 
-        }
-
-        // ALGORITMO DE OTIMIZAÇÃO DE ROTA POR BARRAGEM GEOGRÁFICA / BAIRROS
-        window.otimizarRotaAtual = function() {
-            const filtroDataSel = document.getElementById('filter-date').value; 
-            const filtroMotoristaSel = document.getElementById('filter-driver').value;
-
-            let pendentes = rotas.filter(r => {
-                let dataMatch = (r.abaData === filtroDataSel) || (r.abaData === "Hoje" && filtroDataSel === hojeInput);
-                let driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
-                return dataMatch && driverMatch && !r.concluida && !r.devolvida;
-            });
-
-            if (pendentes.length <= 1) {
-                alert("É necessário ter pelo menos 2 entregas pendentes para otimizar a sequência.");
-                return;
-            }
-
-            // Agrupa por Bairro e reordena em lote
-            pendentes.sort((a, b) => (a.bairro || "").localeCompare(b.bairro || "") || (a.rua || "").localeCompare(b.rua || ""));
-
-            let idx = 1;
-            pendentes.forEach(item => {
-                update(ref(db, 'entregas/' + item.id), { sequencia: idx });
-                idx++;
-            });
-
-            alert(`🚀 Sequência de ${pendentes.length} entregas otimizada com sucesso!`);
-        }
-
-        window.tirarFotoEntrega = function(id) {
-            entregaIdParaFoto = id;
-            document.getElementById('camera-input').click();
-        }
-
-        window.salvarFotoCapturada = function(e) {
-            const file = e.target.files[0];
-            if (file && entregaIdParaFoto) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const base64Data = event.target.result;
-                    update(ref(db, 'entregas/' + entregaIdParaFoto), { fotoComprovante: base64Data });
-                    entregaIdParaFoto = null;
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        let canvas, ctx, desenhando = false;
-
-        function inicializarCanvas() {
+        function initSignaturePad() {
             canvas = document.getElementById('signature-pad');
+            if(!canvas) return;
             ctx = canvas.getContext('2d');
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            ctx.lineWidth = 3;
-            ctx.lineCap = "round";
-            ctx.strokeStyle = "#000";
+
+            function resizeCanvas() {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                ctx.scale(ratio, ratio);
+                ctx.strokeStyle = "#000";
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = "round";
+            }
+            resizeCanvas();
 
             function getPos(e) {
                 const rect = canvas.getBoundingClientRect();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                return { x: clientX - rect.left, y: clientY - rect.top };
+                if(e.touches && e.touches[0]) {
+                    return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+                }
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
             }
 
-            function startDraw(e) { desenhando = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); }
-            function moveDraw(e) { if(!desenhando) return; const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
-            function stopDraw() { desenhando = false; }
+            function startDraw(e) {
+                isDrawing = true;
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+            }
+
+            function moveDraw(e) {
+                if(!isDrawing) return;
+                e.preventDefault();
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            }
+
+            function stopDraw() { isDrawing = false; }
 
             canvas.addEventListener('mousedown', startDraw);
             canvas.addEventListener('mousemove', moveDraw);
             canvas.addEventListener('mouseup', stopDraw);
 
-            canvas.addEventListener('touchstart', startDraw);
-            canvas.addEventListener('touchmove', moveDraw);
+            canvas.addEventListener('touchstart', startDraw, {passive: false});
+            canvas.addEventListener('touchmove', moveDraw, {passive: false});
             canvas.addEventListener('touchend', stopDraw);
         }
 
-        window.abrirModalAssinatura = function(id) {
-            document.getElementById('assinatura-id-entrega').value = id;
+        window.limparAssinatura = function() {
+            if(ctx && canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        };
+
+        window.abrirModalAssinatura = function(id, isDevolucao = false) {
+            idRotaAtualAcao = id;
+            isDevolucaoFlow = isDevolucao;
             document.getElementById('modal-assinatura').style.display = 'flex';
-            setTimeout(inicializarCanvas, 200);
-        }
+            setTimeout(initSignaturePad, 100);
+        };
 
         window.fecharModalAssinatura = function() {
             document.getElementById('modal-assinatura').style.display = 'none';
-        }
+            isDevolucaoFlow = false;
+        };
 
-        window.limparCanvasAssinatura = function() {
-            if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        window.salvarAssinaturaDigital = function() {
-            const id = document.getElementById('assinatura-id-entrega').value;
-            if (id && canvas) {
-                const assinaturaBase64 = canvas.toDataURL();
-                update(ref(db, 'entregas/' + id), { assinaturaDigital: assinaturaBase64 });
+        window.salvarAssinatura = function() {
+            if(!idRotaAtualAcao || !canvas) return;
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            update(ref(db, 'entregas/' + idRotaAtualAcao), {
+                assinatura: dataUrl,
+                assinaturaDigital: dataUrl
+            }).catch(() => {
+                update(ref(db, 'rotas/' + idRotaAtualAcao), {
+                    assinatura: dataUrl,
+                    assinaturaDigital: dataUrl
+                });
+            }).then(() => {
+                const isDev = isDevolucaoFlow;
                 fecharModalAssinatura();
-            }
-        }
-
-        const DISTANCIA_ESTIMADA_POR_ENTREGA_KM = 8.5; 
-
-        window.calcularRelatorioKM = function() {
-            const mesSel = document.getElementById('km-filter-month').value; 
-            const motoristaSel = document.getElementById('km-filter-driver').value;
-
-            if(!mesSel) return;
-
-            let entregasDoMes = rotas.filter(r => {
-                let dataEntrega = r.abaData || r.data.split('T')[0];
-                let mesEntrega = dataEntrega.substring(0, 7);
-                let driverMatch = (motoristaSel === "Todos") || (r.abaMotorista ? r.abaMotorista === motoristaSel : motoristaSel === "Carlos");
-
-                return mesEntrega === mesSel && driverMatch && !r.devolvida;
+                if (isDev) {
+                    window.abrirModalMotivoDevolucao(idRotaAtualAcao);
+                } else {
+                    alert("Assinatura do comprador salva com sucesso!");
+                }
+            }).catch(err => {
+                alert("Erro ao salvar assinatura: " + err.message);
             });
+        };
 
-            let diasAgrupados = {};
-            entregasDoMes.forEach(r => {
-                let dia = r.abaData || r.data.split('T')[0];
-                if(!diasAgrupados[dia]) diasAgrupados[dia] = 0;
-                diasAgrupados[dia]++;
-            });
+        window.iniciarDevolucao = function(id) {
+            const rota = rotas.find(r => r.id === id);
+            if (!rota) return;
 
-            let totalEntregas = entregasDoMes.length;
-            let totalDias = Object.keys(diasAgrupados).length;
-            let kmTotalMes = totalEntregas * DISTANCIA_ESTIMADA_POR_ENTREGA_KM;
-
-            let mediaPorDia = totalDias > 0 ? (kmTotalMes / totalDias) : 0;
-            let mediaPorEntrega = totalEntregas > 0 ? (kmTotalMes / totalEntregas) : 0;
-
-            document.getElementById('km-val-total').innerText = `${kmTotalMes.toFixed(1)} KM`;
-            document.getElementById('km-sub-dias').innerText = `Calculado em ${totalDias} dia(s) com entregas cadastradas`;
-            document.getElementById('km-val-media-dia').innerText = `${mediaPorDia.toFixed(1)} KM`;
-            document.getElementById('km-val-media-entrega').innerText = `${mediaPorEntrega.toFixed(1)} KM`;
-
-            const tbody = document.getElementById('km-table-body');
-            tbody.innerHTML = "";
-
-            const diasOrdenados = Object.keys(diasAgrupados).sort().reverse();
-
-            if(diasOrdenados.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">Nenhum registro encontrado para este mês/motorista.</td></tr>`;
+            if (rota.devolvida) {
+                if (confirm("Deseja cancelar o registro de devolução desta entrega?")) {
+                    const updateObj = { devolvida: false, motivoDevolucao: "" };
+                    update(ref(db, 'entregas/' + id), updateObj).catch(() => update(ref(db, 'rotas/' + id), updateObj));
+                }
                 return;
             }
 
-            diasOrdenados.forEach(dia => {
-                let qtd = diasAgrupados[dia];
-                let kmDia = qtd * DISTANCIA_ESTIMADA_POR_ENTREGA_KM;
-                let dataBR = dia.split('-').reverse().join('/');
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${dataBR}</strong></td>
-                        <td>${qtd} entrega(s)</td>
-                        <td><strong style="color:#0ca678;">~${kmDia.toFixed(1)} KM</strong></td>
-                    </tr>
-                `;
-            });
-        }
-
-        window.alterarFiltrosPrincipais = function() {
-            bairroSelecionado = "Todos"; 
-            atualizarAbasBairros();
-            renderizarCards();
-        }
-
-        window.selecionarAbaBairro = function(bairro) {
-            bairroSelecionado = bairro;
-            const botoes = document.querySelectorAll('.tab-bairro-btn');
-            botoes.forEach(btn => {
-                if (btn.getAttribute('data-bairro') === bairro) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-            renderizarCards();
-        }
-
-        function atualizarAbasBairros() {
-            const containerAbas = document.getElementById('bairros-tabs-container');
-            const filtroDataSel = document.getElementById('filter-date').value;
-            const filtroMotoristaSel = document.getElementById('filter-driver').value;
-
-            let bairrosSet = new Set();
-            rotas.forEach(r => {
-                let dataMatch = false;
-                if (r.abaData) {
-                    if (r.abaData === "Hoje" && filtroDataSel === hojeInput) dataMatch = true;
-                    else dataMatch = (r.abaData === filtroDataSel);
-                } else {
-                    dataMatch = (filtroDataSel === hojeInput);
-                }
-
-                const driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
-                
-                if (dataMatch && driverMatch && r.bairro) {
-                    bairrosSet.add(r.bairro.trim());
-                }
-            });
-
-            const bairrosOrdenados = Array.from(bairrosSet).sort();
-
-            if (bairroSelecionado !== "Todos" && !bairrosSet.has(bairroSelecionado)) {
-                bairroSelecionado = "Todos";
+            const ass = rota.assinatura || rota.assinaturaDigital;
+            if (!ass) {
+                alert("⚠️ ATENÇÃO: Para aceitar a devolução, é OBRIGATÓRIO ter a assinatura do comprador!\n\nPor favor, recolha a assinatura do comprador primeiro.");
+                window.abrirModalAssinatura(id, true);
+                return;
             }
 
-            containerAbas.innerHTML = "";
+            window.abrirModalMotivoDevolucao(id);
+        };
 
-            const btnTodos = document.createElement('button');
-            btnTodos.className = `tab-bairro-btn ${bairroSelecionado === "Todos" ? 'active' : ''}`;
-            btnTodos.setAttribute('data-bairro', 'Todos');
-            btnTodos.textContent = "Todos os Bairros";
-            btnTodos.onclick = () => selecionarAbaBairro('Todos');
-            containerAbas.appendChild(btnTodos);
+        window.abrirModalMotivoDevolucao = function(id) {
+            idRotaAtualAcao = id;
+            document.getElementById('modal-motivo').style.display = 'flex';
+        };
 
-            bairrosOrdenados.forEach(bairro => {
-                const btn = document.createElement('button');
-                btn.className = `tab-bairro-btn ${bairroSelecionado === bairro ? 'active' : ''}`;
-                btn.setAttribute('data-bairro', bairro);
-                btn.textContent = bairro;
-                btn.onclick = () => selecionarAbaBairro(bairro);
-                containerAbas.appendChild(btn);
+        window.fecharModalMotivo = function() {
+            document.getElementById('modal-motivo').style.display = 'none';
+        };
+
+        window.confirmarDevolucao = function(motivo) {
+            if(!idRotaAtualAcao) return;
+            const dataHoje = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            
+            const payload = {
+                devolvida: true,
+                concluida: false,
+                motivoDevolucao: motivo,
+                horaDevolucao: dataHoje
+            };
+
+            update(ref(db, 'entregas/' + idRotaAtualAcao), payload)
+            .catch(() => update(ref(db, 'rotas/' + idRotaAtualAcao), payload))
+            .then(() => {
+                fecharModalMotivo();
+                alert("Devolução registrada com sucesso!");
             });
-        }
+        };
 
-        window.adicionarLinhaPeca = function(containerId, nome = "", valor = "") {
+        window.confirmarDevolucaoCustomizada = function() {
+            const input = document.getElementById('motivo-customizado-input');
+            const val = input ? input.value.trim() : '';
+            if(!val) {
+                alert("Por favor, digite o motivo da devolução.");
+                return;
+            }
+            window.confirmarDevolucao(val);
+            if(input) input.value = '';
+        };
+
+        window.toggleMenu = function() {
+            const menu = document.getElementById('dropdown-menu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        };
+
+        window.trocarAba = function(aba) {
+            document.getElementById('view-entregas').style.display = 'none';
+            document.getElementById('view-km').style.display = 'none';
+            document.getElementById('view-clientes').style.display = 'none';
+            document.getElementById('view-suporte').style.display = 'none';
+            
+            document.getElementById('dropdown-menu').style.display = 'none';
+
+            if(aba === 'entregas') {
+                document.getElementById('view-entregas').style.display = 'block';
+                document.getElementById('app-title').innerText = '📦 Logística de Entregas';
+                if(map) map.invalidateSize();
+                renderizarRotas();
+            } else if(aba === 'km') {
+                document.getElementById('view-km').style.display = 'block';
+                document.getElementById('app-title').innerText = '📊 Relatório de KM';
+                renderizarTabelaKm();
+            } else if(aba === 'clientes') {
+                document.getElementById('view-clientes').style.display = 'block';
+                document.getElementById('app-title').innerText = '👥 Clientes Cadastrados';
+                renderizarClientes();
+            } else if(aba === 'suporte') {
+                document.getElementById('view-suporte').style.display = 'block';
+                document.getElementById('app-title').innerText = '🎧 Central de Suporte';
+                renderizarSuporte();
+            }
+        };
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        function updateOnlineStatus() {
+            const alertElem = document.getElementById('offline-alert');
+            if(alertElem) alertElem.style.display = navigator.onLine ? 'none' : 'block';
+        }
+        updateOnlineStatus();
+
+        window.adicionarLinhaPeca = function(containerId, nome = '', valor = '') {
             const container = document.getElementById(containerId);
+            if(!container) return;
             const div = document.createElement('div');
             div.className = 'peca-row';
             div.innerHTML = `
                 <input type="text" placeholder="Nome da Peça" value="${nome}" required class="p-nome">
-                <input type="text" placeholder="Valor" value="${valor}" required class="p-valor">
-                <button type="button" class="btn-mini btn-remove-item" onclick="this.parentElement.remove()">🗑️</button>
+                <input type="text" placeholder="Valor (Ex: 50,00)" value="${valor}" required class="p-valor">
+                <button type="button" class="btn-mini btn-remove-item" onclick="this.parentElement.remove()">✕</button>
             `;
             container.appendChild(div);
-        }
-
-        function obterPecasForm(containerId) {
-            const container = document.getElementById(containerId);
-            const lines = container.querySelectorAll('.peca-row');
-            let list = [];
-            lines.forEach(linha => {
-                const nomeInput = linha.querySelector('.p-nome');
-                const valorInput = linha.querySelector('.p-valor');
-                if (nomeInput && valorInput) {
-                    const nome = nomeInput.value.trim();
-                    const valor = valorInput.value.trim();
-                    if (nome) list.push({ nome, valor });
-                }
-            });
-            return list;
-        }
-
-        window.adicionarLinhaPagamento = function(containerId, formaSelected = "PIX", valor = "") {
-            const container = document.getElementById(containerId);
-            const div = document.createElement('div');
-            div.className = 'pagamento-row';
-            
-            const options = ["PIX", "Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Faturado", "CONFIRMAR PGTO"]
-                .map(opt => `<option value="${opt}" ${opt === formaSelected ? 'selected' : ''}>${opt}</option>`)
-                .join("");
-
-            div.innerHTML = `
-                <select class="p-forma" required>${options}</select>
-                <input type="text" placeholder="Valor" value="${valor}" required class="p-valor-pagto">
-                <button type="button" class="btn-mini btn-remove-item" onclick="this.parentElement.remove()">🗑️</button>
-            `;
-            container.appendChild(div);
-        }
-
-        function obterPagamentosForm(containerId) {
-            const container = document.getElementById(containerId);
-            const lines = container.querySelectorAll('.pagamento-row');
-            let list = [];
-            lines.forEach(linha => {
-                const formaSelect = linha.querySelector('.p-forma');
-                const valorInput = linha.querySelector('.p-valor-pagto');
-                if (formaSelect && valorInput) {
-                    const forma = formaSelect.value;
-                    const valor = valorInput.value.trim();
-                    list.push({ forma, valor });
-                }
-            });
-            return list;
-        }
-
-        function limparEConverterValor(valorTexto) {
-            if (!valorTexto) return 0;
-            let str = String(valorTexto).trim();
-            if (str.includes(',') && str.includes('.')) {
-                str = str.replace(/\./g, '').replace(',', '.');
-            } else if (str.includes(',')) {
-                str = str.replace(',', '.');
-            }
-            const num = parseFloat(str);
-            return isNaN(num) ? 0 : num;
-        }
-
-        window.buscarCliente = function(texto) {
-            const containerSugestoes = document.getElementById('suggestions');
-            containerSugestoes.innerHTML = "";
-            if (!texto || texto.trim().length < 2) { containerSugestoes.style.display = "none"; return; }
-
-            const textoLimpo = texto.toLowerCase().trim();
-            let encontrou = false;
-
-            Object.keys(listaClientes).forEach(nomeCliente => {
-                if (nomeCliente.toLowerCase().includes(textoLimpo)) {
-                    encontrou = true;
-                    const c = listaClientes[nomeCliente];
-                    const div = document.createElement('div');
-                    div.className = 'suggestion-item';
-                    div.innerText = nomeCliente;
-                    
-                    div.onclick = function() {
-                        document.getElementById('f-cliente').value = nomeCliente;
-                        document.getElementById('f-cep').value = c.cep || "";
-                        document.getElementById('f-ruas').value = c.rua || "";
-                        document.getElementById('f-cidade').value = c.cidade || "";
-                        document.getElementById('f-contato').value = c.contato || "";
-                        document.getElementById('f-bairro').value = c.bairro || "";
-                        containerSugestoes.style.display = "none";
-                    };
-                    containerSugestoes.appendChild(div);
-                }
-            });
-            containerSugestoes.style.display = encontrou ? "block" : "none";
         };
 
-        document.addEventListener('click', function(e) {
-            if (e.target.id !== 'f-cliente') document.getElementById('suggestions').style.display = "none";
-        });
+        window.adicionarLinhaPagamento = function(containerId, forma = 'PIX', valor = '') {
+            const container = document.getElementById(containerId);
+            if(!container) return;
+            const div = document.createElement('div');
+            div.className = 'pagamento-row';
+            div.innerHTML = `
+                <select class="p-forma" required>
+                    <option value="PIX" ${forma === 'PIX' ? 'selected' : ''}>PIX</option>
+                    <option value="Dinheiro" ${forma === 'Dinheiro' ? 'selected' : ''}>Dinheiro</option>
+                    <option value="Cartão de Crédito" ${forma === 'Cartão de Crédito' ? 'selected' : ''}>Cartão de Crédito</option>
+                    <option value="Cartão de Débito" ${forma === 'Cartão de Débito' ? 'selected' : ''}>Cartão de Débito</option>
+                    <option value="Faturado" ${forma === 'Faturado' ? 'selected' : ''}>Faturado</option>
+                    <option value="CONFIRMAR PGTO" ${forma === 'CONFIRMAR PGTO' ? 'selected' : ''}>CONFIRMAR PGTO</option>
+                </select>
+                <input type="text" placeholder="Valor (Ex: 50,00)" value="${valor}" required class="p-valor-pagto">
+                <button type="button" class="btn-mini btn-remove-item" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(div);
+        };
 
-        window.adicionarRota = function(e) {
+        function lerArquivoBase64(file) {
+            return new Promise((resolve, reject) => {
+                if (!file) return resolve(null);
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        window.adicionarRota = async function(e) {
             e.preventDefault();
-            const idGerado = Date.now().toString();
-            const nomeCliente = document.getElementById('f-cliente').value.trim();
-            const cep = document.getElementById('f-cep').value;
-            const rua = document.getElementById('f-ruas').value;
-            const cidade = document.getElementById('f-cidade').value;
-            const contato = document.getElementById('f-contato').value;
+
+            const cliente = document.getElementById('f-cliente').value.trim();
+            const contato = document.getElementById('f-contato').value.trim();
             const bairro = document.getElementById('f-bairro').value.trim();
-            
-            const pecasDigitadas = obterPecasForm('f-pecas-list');
-            const pagamentosDigitados = obterPagamentosForm('f-pagamentos-list');
-            const dataFiltroSelecionada = document.getElementById('filter-date').value;
+            const cep = document.getElementById('f-cep').value.trim();
+            const cidade = document.getElementById('f-cidade').value.trim();
+            const rua = document.getElementById('f-ruas').value.trim();
+            const obs = document.getElementById('f-obs').value.trim();
+            const sequenciaVal = document.getElementById('f-sequencia').value;
+            const pdfInput = document.getElementById('f-pdf');
+
+            const pecasRows = document.querySelectorAll('#f-pecas-list .peca-row');
+            let pecas = [];
+            pecasRows.forEach(row => {
+                const n = row.querySelector('.p-nome').value.trim();
+                const v = row.querySelector('.p-valor').value.trim();
+                if(n) pecas.push({ nome: n, valor: v });
+            });
+
+            const pagtoRows = document.querySelectorAll('#f-pagamentos-list .pagamento-row');
+            let pagamentos = [];
+            pagtoRows.forEach(row => {
+                const f = row.querySelector('.p-forma').value;
+                const v = row.querySelector('.p-valor-pagto').value.trim();
+                if(f) pagamentos.push({ forma: f, valor: v });
+            });
+
+            const filtroDataSel = document.getElementById('filter-date').value || hojeISO;
+            const filtroMotoristaSel = document.getElementById('filter-driver').value || 'Todos';
+
+            let pdfBase64 = null;
+            if (pdfInput && pdfInput.files && pdfInput.files[0]) {
+                try {
+                    pdfBase64 = await lerArquivoBase64(pdfInput.files[0]);
+                } catch(err) {
+                    console.error("Erro ao ler arquivo PDF:", err);
+                }
+            }
 
             const novaRota = {
-                data: new Date().toISOString(),
-                abaData: dataFiltroSelecionada, 
-                abaMotorista: document.getElementById('filter-driver').value,
-                cliente: nomeCliente,
-                pecas: pecasDigitadas,
-                pagamentos: pagamentosDigitados,
-                cep: cep,
-                rua: rua,
-                cidade: cidade,
-                contato: contato,
-                bairro: bairro,
-                sequencia: document.getElementById('f-sequencia').value ? parseInt(document.getElementById('f-sequencia').value) : "", 
-                obs: document.getElementById('f-obs').value,
+                cliente,
+                contato,
+                bairro,
+                cep,
+                cidade,
+                rua,
+                obs,
+                pecas,
+                pagamentos,
+                abaData: filtroDataSel,
+                abaMotorista: filtroMotoristaSel === 'Todos' ? 'Carlos' : filtroMotoristaSel,
                 concluida: false,
                 devolvida: false,
-                motivoDevolucao: "",
-                horaSaida: "", 
-                horaChegada: "",
-                fotoComprovante: "",
-                assinaturaDigital: ""
+                dataCriacao: new Date().toLocaleDateString('pt-BR'),
+                pdfDocumento: pdfBase64 || null
             };
 
-            set(ref(db, 'entregas/' + idGerado), novaRota);
+            if(sequenciaVal) novaRota.sequencia = parseInt(sequenciaVal);
 
-            if (nomeCliente) {
-                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato, bairro: bairro });
-            }
-            
+            const idGerado = Date.now().toString();
+            set(ref(db, 'entregas/' + idGerado), novaRota).then(() => {
+                limparFormularioCriacao();
+                alert("Entrega cadastrada com sucesso!");
+            }).catch(() => {
+                push(ref(db, 'rotas'), novaRota).then(() => {
+                    limparFormularioCriacao();
+                    alert("Entrega cadastrada com sucesso!");
+                });
+            });
+        };
+
+        function limparFormularioCriacao() {
             document.getElementById('route-form').reset();
             document.getElementById('f-pecas-list').innerHTML = `
                 <div class="peca-row">
                     <input type="text" placeholder="Nome da Peça" required class="p-nome">
                     <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
                     <div style="width:34px"></div>
-                </div>`;
+                </div>
+            `;
             document.getElementById('f-pagamentos-list').innerHTML = `
                 <div class="pagamento-row">
                     <select class="p-forma" required>
@@ -1214,133 +1118,352 @@
                     </select>
                     <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
                     <div style="width:34px"></div>
-                </div>`;
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                </div>
+            `;
+            document.getElementById('f-cidade').value = 'Castro - PR';
         }
 
-        window.renderizarClientes = function(filtroBusca = "") {
-            const container = document.getElementById('container-clientes');
-            const totalBadge = document.getElementById('total-clientes-badge');
-            container.innerHTML = "";
-
-            const termos = filtroBusca.toLowerCase().trim();
-            const nomesClientes = Object.keys(listaClientes).sort();
-
-            let clientesFiltrados = nomesClientes.filter(nome => nome.toLowerCase().includes(termos));
-            totalBadge.innerText = `Clientes Cadastrados: ${clientesFiltrados.length}`;
-
-            if(clientesFiltrados.length === 0) {
-                container.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>Nenhum cliente encontrado.</p>";
-                return;
-            }
-
-            clientesFiltrados.forEach(nomeCliente => {
-                const c = listaClientes[nomeCliente];
-                const historicoEntregas = rotas.filter(r => r.cliente && r.cliente.toLowerCase() === nomeCliente.toLowerCase());
-
-                let htmlHistorico = "";
-                if(historicoEntregas.length > 0) {
-                    historicoEntregas.forEach(h => {
-                        let statusText = "⏳ Pendente";
-                        if(h.concluida) statusText = "✅ Entregue";
-                        if(h.devolvida) statusText = `↩️ Devolvida (${h.motivoDevolucao || 'Sem motivo'})`;
-
-                        htmlHistorico += `
-                            <div class="cliente-historico-item">
-                                <strong>📅 Data:</strong> ${formatarDataHoraCard(h.data)} | <strong>Status:</strong> ${statusText}<br>
-                                <strong>🚗 Motorista:</strong> ${h.abaMotorista || 'Carlos'}<br>
-                                <strong>📍 Endereço da Entrega:</strong> ${h.rua}, ${h.cidade}
-                            </div>
-                        `;
-                    });
-                } else {
-                    htmlHistorico = "<p style='font-size:12px; color:#888; margin:4px 0;'>Nenhum pedido recente registrado.</p>";
-                }
-
-                container.innerHTML += `
-                    <div class="cliente-card">
-                        <div class="cliente-header">
-                            <span>👤 ${nomeCliente}</span>
-                            ${c.contato ? `<button class="btn-action btn-whatsapp" style="padding:4px 8px;" onclick="abrirContato('${c.contato}')">💬 Contactar</button>` : ''}
-                        </div>
-                        <div style="font-size: 13px; color:#444;">
-                            <p style="margin: 4px 0;"><strong>📞 Contato:</strong> ${c.contato || 'Não informado'}</p>
-                            <p style="margin: 4px 0;"><strong>📍 Bairro:</strong> ${c.bairro || 'Não informado'}</p>
-                            <p style="margin: 4px 0;"><strong>🏠 Endereço Principal:</strong> ${c.rua || 'Não informado'}, ${c.cidade || ''}</p>
-                            <p style="margin: 4px 0;"><strong>📮 CEP:</strong> ${c.cep || 'Não informado'}</p>
-                            
-                            <hr style="border:none; border-top:1px solid #eee; margin:10px 0;">
-                            <strong>📦 Histórico de Pedidos (${historicoEntregas.length}):</strong>
-                            ${htmlHistorico}
-                        </div>
-                    </div>
-                `;
+        function escutarBancoDeDados() {
+            onValue(ref(db, 'entregas'), (snapshot) => {
+                const dadosEntregas = snapshot.exists() ? snapshot.val() : {};
+                onValue(ref(db, 'rotas'), (snap2) => {
+                    const dadosRotas = snap2.exists() ? snap2.val() : {};
+                    processarDadosCombined(dadosEntregas, dadosRotas);
+                });
             });
         }
 
-        window.alternarDevolucao = function(id) {
-            const rota = rotas.find(r => r.id === id);
-            if(rota) {
-                if(rota.devolvida) {
-                    update(ref(db, 'entregas/' + id), { devolvida: false, motivoDevolucao: "" });
-                } else {
-                    document.getElementById('motivo-id-entrega').value = id;
-                    document.getElementById('modal-motivos-devolucao').style.display = 'flex';
+        function processarDadosCombined(dadosE, dadosR) {
+            rotas = [];
+            const combinados = { ...dadosR, ...dadosE };
+            for (let key in combinados) {
+                rotas.push({ id: key, ...combinados[key] });
+            }
+            renderizarRotas();
+        }
+
+        escutarBancoDeDados();
+
+        onValue(ref(db, 'registros_km'), (snapshot) => {
+            registrosKm = [];
+            if(snapshot.exists()) {
+                const data = snapshot.val();
+                for(let key in data) {
+                    registrosKm.push({ id: key, ...data[key] });
                 }
             }
+            renderizarTabelaKm();
+        });
+
+        onValue(ref(db, 'suporte'), (snapshot) => {
+            ocorrenciasSuporte = [];
+            if(snapshot.exists()) {
+                const data = snapshot.val();
+                for(let key in data) {
+                    ocorrenciasSuporte.push({ id: key, ...data[key] });
+                }
+            }
+            renderizarSuporte();
+        });
+
+        window.alterarFiltrosPrincipais = function() {
+            activeBairroFilter = 'TODOS';
+            renderizarRotas();
+        };
+
+        window.limparFiltroData = function() {
+            document.getElementById('filter-date').value = "";
+            alterarFiltrosPrincipais();
+        };
+
+        window.selecionarFiltroBairro = function(bairro) {
+            activeBairroFilter = bairro;
+            renderizarRotas();
+        };
+
+        function parseValorMonetario(str) {
+            if(!str) return 0;
+            let limpo = str.toString().replace(/[^\d,-]/g, '').replace(',', '.');
+            let num = parseFloat(limpo);
+            return isNaN(num) ? 0 : num;
         }
 
-        window.confirmarDevolucaoComMotivo = function(motivoEscolhido) {
-            const id = document.getElementById('motivo-id-entrega').value;
-            if(id) {
-                update(ref(db, 'entregas/' + id), {
-                    devolvida: true,
-                    concluida: false,
-                    motivoDevolucao: motivoEscolhido
+        function normalizarDataParaISO(dataStr) {
+            if (!dataStr) return "";
+            if (dataStr.includes("T")) return dataStr.split("T")[0];
+            if (dataStr.includes("/")) {
+                const partes = dataStr.split("/");
+                if (partes.length === 3) {
+                    return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+                }
+            }
+            return dataStr;
+        }
+
+        function renderizarRotas() {
+            const container = document.getElementById('route-list') || document.getElementById('container-entregas');
+            const tabsContainer = document.getElementById('bairros-tabs-container');
+            const filtroDataInput = document.getElementById('filter-date') ? document.getElementById('filter-date').value : "";
+            const filtroMotoristaSel = document.getElementById('filter-driver') ? document.getElementById('filter-driver').value : "Todos";
+
+            if(!container) return;
+
+            if(map && markers) {
+                markers.forEach(m => map.removeLayer(m));
+                markers = [];
+            }
+
+            let bairrosSet = new Set();
+            rotas.forEach(r => {
+                if (r.bairro) bairrosSet.add(r.bairro.trim());
+            });
+
+            if(tabsContainer) {
+                let tabsHTML = `<button class="tab-bairro-btn ${activeBairroFilter === 'TODOS' ? 'active' : ''}" onclick="selecionarFiltroBairro('TODOS')">TODOS</button>`;
+                bairrosSet.forEach(b => {
+                    tabsHTML += `<button class="tab-bairro-btn ${activeBairroFilter === b ? 'active' : ''}" onclick="selecionarFiltroBairro('${b}')">${b}</button>`;
                 });
-                fecharModalMotivos();
+                tabsContainer.innerHTML = tabsHTML;
             }
+
+            let entregasFiltradas = rotas.filter(r => {
+                let dataMatch = true;
+
+                if (filtroDataInput !== "") {
+                    let dataRotaISO = normalizarDataParaISO(r.abaData || r.data || r.dataCriacao);
+                    if (dataRotaISO && dataRotaISO !== filtroDataInput && r.abaData !== "Hoje") {
+                        dataMatch = false;
+                    }
+                }
+
+                let driverMatch = (filtroMotoristaSel === "Todos" || !r.abaMotorista || r.abaMotorista === filtroMotoristaSel);
+                let bairroMatch = (activeBairroFilter === 'TODOS' || !r.bairro || r.bairro.trim() === activeBairroFilter);
+
+                return dataMatch && driverMatch && bairroMatch;
+            });
+
+            entregasFiltradas.sort((a, b) => {
+                let seqA = a.sequencia !== undefined && a.sequencia !== "" ? parseInt(a.sequencia) : 9999;
+                let seqB = b.sequencia !== undefined && b.sequencia !== "" ? parseInt(b.sequencia) : 9999;
+                return seqA - seqB;
+            });
+
+            const totalBadge = document.getElementById('total-entregas-badge') || document.getElementById('total-entregas');
+            if(totalBadge) totalBadge.innerText = `${entregasFiltradas.length} entrega(s) encontrada(s) de ${rotas.length} no total`;
+
+            let somaPix = 0, somaDinheiro = 0, somaCredito = 0, somaDebito = 0, somaTotal = 0;
+
+            container.innerHTML = "";
+
+            if(entregasFiltradas.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #888; padding: 20px; background: white; border-radius: 12px;">Nenhuma entrega encontrada com os filtros selecionados.</div>`;
+            }
+
+            entregasFiltradas.forEach((rota, idx) => {
+                if (rota.pagamentos && rota.pagamentos.length > 0) {
+                    rota.pagamentos.forEach(p => {
+                        const val = parseValorMonetario(p.valor);
+                        somaTotal += val;
+                        if(p.forma === 'PIX') somaPix += val;
+                        else if(p.forma === 'Dinheiro') somaDinheiro += val;
+                        else if(p.forma === 'Cartão de Crédito') somaCredito += val;
+                        else if(p.forma === 'Cartão de Débito') somaDebito += val;
+                    });
+                } else if(rota.valor) {
+                    const val = parseValorMonetario(rota.valor);
+                    somaTotal += val;
+                    somaPix += val;
+                }
+
+                if (map && rota.lat && rota.lng) {
+                    const m = L.marker([rota.lat, rota.lng]).addTo(map);
+                    m.bindPopup(`<b>${rota.cliente}</b><br>${rota.rua}`);
+                    markers.push(m);
+                }
+
+                const card = document.createElement('div');
+                let cardClass = 'delivery-card';
+                if(rota.concluida) cardClass += ' concluida';
+                if(rota.devolvida) cardClass += ' devolvida';
+
+                card.className = cardClass;
+
+                const numSequencia = rota.sequencia !== undefined ? rota.sequencia : (idx + 1);
+                const motoristaAtual = rota.abaMotorista || 'Carlos';
+                const dataExibicao = rota.abaData || rota.dataCriacao || rota.data || 'Sem Data';
+
+                let pecasHTML = "";
+                if(rota.pecas && rota.pecas.length > 0) {
+                    pecasHTML = '<div class="card-pecas-list"><strong>🔧 Peças:</strong>';
+                    rota.pecas.forEach(p => {
+                        pecasHTML += `<div><span>• ${p.nome}</span> <b>R$ ${p.valor}</b></div>`;
+                    });
+                    pecasHTML += '</div>';
+                } else if(rota.peca) {
+                    pecasHTML = `<div class="card-pecas-list"><strong>🔧 Peça:</strong> <div><span>• ${rota.peca}</span> <b>R$ ${rota.valor || '0,00'}</b></div></div>`;
+                }
+
+                let pagamentosHTML = "";
+                if(rota.pagamentos && rota.pagamentos.length > 0) {
+                    pagamentosHTML = '<div class="card-pagamentos-list"><strong>💳 Pagamento:</strong>';
+                    rota.pagamentos.forEach(p => {
+                        pagamentosHTML += `<div><span>• ${p.forma}</span> <b>R$ ${p.valor}</b></div>`;
+                    });
+                    pagamentosHTML += '</div>';
+                }
+
+                let pdfHTML = "";
+                if (rota.pdfDocumento) {
+                    pdfHTML = `
+                        <div style="margin-top: 6px;">
+                            <a href="${rota.pdfDocumento}" target="_blank" class="btn-action btn-pdf-view">
+                                📄 Ver PDF da Conta/Papel
+                            </a>
+                        </div>
+                    `;
+                }
+
+                let comprovanteHTML = "";
+                const assDigit = rota.assinatura || rota.assinaturaDigital;
+                if(rota.fotoComprovante || assDigit) {
+                    comprovanteHTML = '<div class="comprovantes-preview-container">';
+                    if(rota.fotoComprovante) {
+                        comprovanteHTML += `<img src="${rota.fotoComprovante}" class="comprovante-thumb" onclick="window.open('${rota.fotoComprovante}')" title="Foto da Entrega">`;
+                    }
+                    if(assDigit) {
+                        comprovanteHTML += `<img src="${assDigit}" class="comprovante-thumb" onclick="window.open('${assDigit}')" title="Assinatura do Comprador" style="background: #fff; padding: 2px;">`;
+                    }
+                    comprovanteHTML += '</div>';
+                }
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">${rota.cliente || 'Cliente'}</div>
+                        <div class="badges-wrapper">
+                            <span class="card-date">📅 ${dataExibicao}</span>
+                            <span class="card-sequence-badge">#${numSequencia}</span>
+                            <span class="card-neighborhood-badge">${rota.bairro || 'Geral'}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p>📍 <strong>Endereço:</strong> ${rota.rua || ''} - ${rota.cidade || ''}</p>
+                        ${rota.contato ? `<p>📞 <strong>Contato:</strong> ${rota.contato}</p>` : ''}
+                        ${pecasHTML}
+                        ${pagamentosHTML}
+                        ${pdfHTML}
+                        ${rota.obs ? `<div class="obs-alert">📝 <strong>Obs:</strong> ${rota.obs}</div>` : ''}
+                        ${rota.devolvida ? `<div class="motivo-alert">⚠️ DEVOLVIDO (${rota.horaDevolucao || ''}): ${rota.motivoDevolucao || 'Sem motivo especificado'}</div>` : ''}
+                        
+                        ${comprovanteHTML}
+
+                        <div class="driver-status-section">
+                            <div class="config-row">
+                                <div class="config-group">
+                                    <label>👤 Motorista:</label>
+                                    <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)">
+                                        <option value="Carlos" ${motoristaAtual === 'Carlos' ? 'selected' : ''}>Carlos</option>
+                                        <option value="Luiz Marcelo" ${motoristaAtual === 'Luiz Marcelo' ? 'selected' : ''}>Luiz Marcelo</option>
+                                        <option value="Barbosa" ${motoristaAtual === 'Barbosa' ? 'selected' : ''}>Barbosa</option>
+                                    </select>
+                                </div>
+                                <div class="config-group">
+                                    <label>🔢 Alterar Posição:</label>
+                                    <input type="number" value="${numSequencia}" placeholder="Ex: 1" onchange="atualizarDadoEntrega('${rota.id}', 'sequencia', parseInt(this.value))" min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-action btn-gps" onclick="abrirGps('${rota.rua || ''}', '${rota.cidade || ''}')">🧭 GPS</button>
+                        ${rota.contato ? `<button class="btn-action btn-whatsapp" onclick="abrirWhatsApp('${rota.contato}')">💬 Zap</button>` : ''}
+                        <button class="btn-action btn-edit" onclick="abrirModalEditar('${rota.id}')">✏️ Editar</button>
+                        <button class="btn-action btn-check" onclick="marcarConcluida('${rota.id}')">
+                            ${rota.concluida ? '↩️ Refazer' : '✅ Entregue'}
+                        </button>
+                        <button class="btn-action btn-devolucao" onclick="iniciarDevolucao('${rota.id}')">🔄 Devolução</button>
+                        <button class="btn-action btn-camera" onclick="capturarFotoComprovante('${rota.id}')">📸 Foto</button>
+                        <button class="btn-action btn-assinatura" onclick="abrirModalAssinatura('${rota.id}', false)">✍️ Assinar</button>
+                        <button class="btn-action btn-delete" onclick="deletarEntrega('${rota.id}')">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            atualizarPainelResumo(somaPix, somaDinheiro, somaCredito, somaDebito, somaTotal);
         }
 
-        window.fecharModalMotivos = function() {
-            document.getElementById('modal-motivos-devolucao').style.display = 'none';
+        window.renderizarCards = renderizarRotas;
+
+        function atualizarPainelResumo(pix, dinheiro, credito, debito, total) {
+            if(document.getElementById('resumo-pix')) document.getElementById('resumo-pix').innerText = "R$ " + pix.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if(document.getElementById('resumo-dinheiro')) document.getElementById('resumo-dinheiro').innerText = "R$ " + dinheiro.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if(document.getElementById('resumo-credito')) document.getElementById('resumo-credito').innerText = "R$ " + credito.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if(document.getElementById('resumo-debito')) document.getElementById('resumo-debito').innerText = "R$ " + debito.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if(document.getElementById('resumo-total-geral')) document.getElementById('resumo-total-geral').innerText = "R$ " + total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
 
-        window.enviarOcorrencia = function(e) {
-            e.preventDefault();
-            const idGerado = Date.now().toString();
+        window.atualizarDadoEntrega = function(id, campo, valor) {
+            const updateObj = { [campo]: valor };
+            update(ref(db, 'entregas/' + id), updateObj).catch(() => update(ref(db, 'rotas/' + id), updateObj));
+        };
 
-            const ocorrencia = {
-                data: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                motorista: document.getElementById('sup-motorista').value,
-                tipo: document.getElementById('sup-tipo').value,
-                cliente: document.getElementById('sup-cliente').value,
-                obs: document.getElementById('sup-obs').value,
-                status: 'Aberto'
+        window.marcarConcluida = function(id) {
+            const rota = rotas.find(r => r.id === id);
+            if(!rota) return;
+            const novoStatus = !rota.concluida;
+            const updateObj = { concluida: novoStatus, devolvida: false };
+            update(ref(db, 'entregas/' + id), updateObj).catch(() => update(ref(db, 'rotas/' + id), updateObj));
+        };
+
+        window.deletarEntrega = function(id) {
+            if(confirm("Deseja realmente apagar esta entrega do sistema?")) {
+                remove(ref(db, 'entregas/' + id)).catch(() => remove(ref(db, 'rotas/' + id)));
+            }
+        };
+
+        window.apagarTodasRotas = function() {
+            if(confirm("⚠️ ATENÇÃO: Deseja REALMENTE excluir TODAS as entregas cadastradas no Firebase?")) {
+                remove(ref(db, 'entregas'));
+                remove(ref(db, 'rotas'));
+            }
+        };
+
+        let idRotaFotoCaptura = null;
+        window.capturarFotoComprovante = function(id) {
+            idRotaFotoCaptura = id;
+            document.getElementById('camera-input').click();
+        };
+
+        window.salvarFotoCapturada = function(event) {
+            const file = event.target.files[0];
+            if (!file || !idRotaFotoCaptura) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Image = e.target.result;
+                const updateObj = { fotoComprovante: base64Image };
+                update(ref(db, 'entregas/' + idRotaFotoCaptura), updateObj)
+                .catch(() => update(ref(db, 'rotas/' + idRotaFotoCaptura), updateObj))
+                .then(() => {
+                    alert("Foto do comprovante anexada com sucesso!");
+                    idRotaFotoCaptura = null;
+                });
             };
+            reader.readAsDataURL(file);
+        };
 
-            set(ref(db, 'suporte/' + idGerado), ocorrencia);
-            document.getElementById('sup-form').reset();
-            alert("Ocorrência registrada no Suporte!");
-        }
+        window.abrirGps = function(rua, cidade) {
+            const dest = encodeURIComponent(`${rua}, ${cidade}`);
+            window.open(`https://maps.google.com/?q=${dest}`, '_blank');
+        };
 
-        window.resolverOcorrencia = function(id) {
-            update(ref(db, 'suporte/' + id), { status: 'Resolvido' });
-        }
-
-        window.abrirNoGps = function(rua, city) {
-            const enderecoFormatado = encodeURIComponent(`${rua}, ${city}`);
-            window.open(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`, '_blank');
-        }
-
-        window.abrirContato = function(telefone) {
-            const apenasNumeros = telefone.replace(/\D/g, "");
-            if(apenasNumeros.length >= 10) {
-                window.open("https://wa.me/55" + apenasNumeros, '_blank');
-            } else {
-                window.open("tel:" + apenasNumeros, '_self');
+        window.abrirWhatsApp = function(contato) {
+            let apenasNumeros = contato.replace(/\D/g, '');
+            if(!apenasNumeros.startsWith('55') && apenasNumeros.length <= 11) {
+                apenasNumeros = '55' + apenasNumeros;
             }
-        }
+            window.open(`https://wa.me/${apenasNumeros}`, '_blank');
+        };
 
         window.abrirModalEditar = function(id) {
             const rota = rotas.find(r => r.id === id);
@@ -1374,85 +1497,336 @@
                 window.adicionarLinhaPagamento('e-pagamentos-list');
             }
 
-            document.getElementById('modal-editar-entrega').style.display = "flex";
-        }
+            document.getElementById('modal-editar').style.display = 'flex';
+        };
 
         window.fecharModalEditar = function() {
-            document.getElementById('modal-editar-entrega').style.display = "none";
-        }
+            document.getElementById('modal-editar').style.display = 'none';
+        };
 
-        window.salvarEdicaoEntrega = function(e) {
+        window.salvarEdicaoRota = async function(e) {
             e.preventDefault();
             const id = document.getElementById('e-id').value;
             if(!id) return;
 
-            const nomeCliente = document.getElementById('e-cliente').value.trim();
-            const cep = document.getElementById('e-cep').value;
-            const rua = document.getElementById('e-ruas').value;
-            const cidade = document.getElementById('e-cidade').value;
-            const contato = document.getElementById('e-contato').value;
+            const cliente = document.getElementById('e-cliente').value.trim();
+            const contato = document.getElementById('e-contato').value.trim();
             const bairro = document.getElementById('e-bairro').value.trim();
-            
-            const pecasEditadas = obterPecasForm('e-pecas-list');
-            const pagamentosEditados = obterPagamentosForm('e-pagamentos-list');
+            const cep = document.getElementById('e-cep').value.trim();
+            const cidade = document.getElementById('e-cidade').value.trim();
+            const rua = document.getElementById('e-ruas').value.trim();
+            const obs = document.getElementById('e-obs').value.trim();
+            const sequenciaVal = document.getElementById('e-sequencia').value;
+            const pdfInput = document.getElementById('e-pdf');
+
+            const pecasRows = document.querySelectorAll('#e-pecas-list .peca-row');
+            let pecas = [];
+            pecasRows.forEach(row => {
+                const n = row.querySelector('.p-nome').value.trim();
+                const v = row.querySelector('.p-valor').value.trim();
+                if(n) pecas.push({ nome: n, valor: v });
+            });
+
+            const pagtoRows = document.querySelectorAll('#e-pagamentos-list .pagamento-row');
+            let pagamentos = [];
+            pagtoRows.forEach(row => {
+                const f = row.querySelector('.p-forma').value;
+                const v = row.querySelector('.p-valor-pagto').value.trim();
+                if(f) pagamentos.push({ forma: f, valor: v });
+            });
 
             const dadosAtualizados = {
-                cliente: nomeCliente,
-                pecas: pecasEditadas,
-                pagamentos: pagamentosEditados,
-                cep: cep,
-                rua: rua,
-                cidade: cidade,
-                contato: contato,
-                bairro: bairro,
-                sequencia: document.getElementById('e-sequencia').value ? parseInt(document.getElementById('e-sequencia').value) : "",
-                obs: document.getElementById('e-obs').value
+                cliente, contato, bairro, cep, cidade, rua, obs, pecas, pagamentos
             };
 
-            update(ref(db, 'entregas/' + id), dadosAtualizados);
-            if (nomeCliente) {
-                set(ref(db, 'clientes/' + nomeCliente), { cep: cep, rua: rua, cidade: cidade, contato: contato, bairro: bairro });
+            if (pdfInput && pdfInput.files && pdfInput.files[0]) {
+                try {
+                    const pdfBase64 = await lerArquivoBase64(pdfInput.files[0]);
+                    dadosAtualizados.pdfDocumento = pdfBase64;
+                } catch(err) {
+                    console.error(err);
+                }
             }
-            fecharModalEditar();
-        }
 
-        window.atualizarDadoEntrega = function(id, campo, valor) {
-            const dadosAtualizar = {};
-            dadosAtualizar[campo] = (campo === 'sequencia' && valor !== "") ? parseInt(valor) : valor;
-            update(ref(db, 'entregas/' + id), dadosAtualizar);
-        }
+            if(sequenciaVal !== "") {
+                dadosAtualizados.sequencia = parseInt(sequenciaVal);
+            }
 
-        window.alternarConclusao = function(id) { 
-            const rota = rotas.find(r => r.id === id); 
-            if(rota) { 
-                const novoEstado = !rota.concluida;
-                const atualizacoes = { concluida: novoEstado };
-                
-                if(novoEstado) {
-                    atualizacoes.devolvida = false;
-                    atualizacoes.motivoDevolucao = "";
-                    if(!rota.horaChegada) {
-                        atualizacoes.horaChegada = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            update(ref(db, 'entregas/' + id), dadosAtualizados)
+            .catch(() => update(ref(db, 'rotas/' + id), dadosAtualizados))
+            .then(() => {
+                fecharModalEditar();
+                alert("Entrega atualizada com sucesso!");
+            });
+        };
+
+        window.otimizarRotaAtual = function() {
+            let entregasFiltradas = rotas.filter(r => !r.concluida);
+
+            if(entregasFiltradas.length < 2) {
+                alert("É necessário ter pelo menos 2 entregas pendentes para otimizar a sequência.");
+                return;
+            }
+
+            entregasFiltradas.sort((a, b) => {
+                let bA = (a.bairro || '').toLowerCase();
+                let bB = (b.bairro || '').toLowerCase();
+                if(bA < bB) return -1;
+                if(bA > bB) return 1;
+
+                let rA = (a.rua || '').toLowerCase();
+                let rB = (b.rua || '').toLowerCase();
+                return rA.localeCompare(rB);
+            });
+
+            let updates = {};
+            entregasFiltradas.forEach((rota, idx) => {
+                updates[`entregas/${rota.id}/sequencia`] = idx + 1;
+                updates[`rotas/${rota.id}/sequencia`] = idx + 1;
+            });
+
+            update(ref(db), updates).then(() => {
+                alert("🚀 Rota otimizada por proximidade de Bairro e Rua com sucesso!");
+            });
+        };
+
+        window.buscarEnderecoPorCEP = function(cep, idRua, idCidade, idBairro) {
+            const cepLimpo = cep.replace(/\D/g, '');
+            if(cepLimpo.length === 8) {
+                fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if(!data.erro) {
+                            if(data.logradouro) document.getElementById(idRua).value = data.logradouro;
+                            if(data.bairro) document.getElementById(idBairro).value = data.bairro;
+                            if(data.localidade) document.getElementById(idCidade).value = `${data.localidade} - ${data.uf}`;
+                        }
+                    }).catch(err => console.error("Erro no CEP:", err));
+            }
+        };
+
+        window.buscarCliente = function(texto) {
+            const sugBox = document.getElementById('suggestions');
+            if(!texto || texto.length < 2) {
+                if(sugBox) sugBox.style.display = 'none';
+                return;
+            }
+
+            const textoLower = texto.toLowerCase();
+            let clientesEncontrados = new Map();
+
+            rotas.forEach(r => {
+                if(r.cliente && r.cliente.toLowerCase().includes(textoLower)) {
+                    if(!clientesEncontrados.has(r.cliente)) {
+                        clientesEncontrados.set(r.cliente, r);
                     }
                 }
-                update(ref(db, 'entregas/' + id), atualizacoes);
-            } 
+            });
+
+            if(clientesEncontrados.size === 0) {
+                if(sugBox) sugBox.style.display = 'none';
+                return;
+            }
+
+            sugBox.innerHTML = '';
+            clientesEncontrados.forEach((rota, nomeCliente) => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerText = nomeCliente;
+                item.onclick = function() {
+                    document.getElementById('f-cliente').value = rota.cliente;
+                    if(rota.contato) document.getElementById('f-contato').value = rota.contato;
+                    if(rota.bairro) document.getElementById('f-bairro').value = rota.bairro;
+                    if(rota.rua) document.getElementById('f-ruas').value = rota.rua;
+                    if(rota.cidade) document.getElementById('f-cidade').value = rota.cidade;
+                    if(rota.cep) document.getElementById('f-cep').value = rota.cep;
+                    sugBox.style.display = 'none';
+                };
+                sugBox.appendChild(item);
+            });
+            sugBox.style.display = 'block';
+        };
+
+        window.registrarKm = function(e) {
+            e.preventDefault();
+            const data = document.getElementById('km-data').value;
+            const motorista = document.getElementById('km-motorista').value;
+            const kmInicial = parseFloat(document.getElementById('km-inicial').value);
+            const kmFinal = parseFloat(document.getElementById('km-final').value);
+
+            if(kmFinal <= kmInicial) {
+                alert("O KM Final deve ser maior do que o KM Inicial.");
+                return;
+            }
+
+            const novoRegistro = {
+                data, motorista, kmInicial, kmFinal, totalRodado: (kmFinal - kmInicial)
+            };
+
+            push(ref(db, 'registros_km'), novoRegistro).then(() => {
+                document.getElementById('km-form').reset();
+                document.getElementById('km-data').value = hojeISO;
+                alert("Registro de KM salvo com sucesso!");
+            });
+        };
+
+        function renderizarTabelaKm() {
+            const tbody = document.getElementById('km-table-body');
+            if(!tbody) return;
+            tbody.innerHTML = "";
+
+            let totalMes = 0;
+            const mesAtualISO = hojeISO.substring(0, 7);
+
+            registrosKm.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+            if(registrosKm.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum registro encontrado.</td></tr>`;
+            }
+
+            registrosKm.forEach(reg => {
+                if(reg.data && reg.data.startsWith(mesAtualISO)) {
+                    totalMes += (reg.totalRodado || 0);
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${reg.data ? reg.data.split('-').reverse().join('/') : ''}</td>
+                    <td><b>${reg.motorista}</b></td>
+                    <td>${reg.kmInicial}</td>
+                    <td>${reg.kmFinal}</td>
+                    <td><strong style="color: var(--km-color);">${reg.totalRodado} km</strong></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if(document.getElementById('km-total-mes')) {
+                document.getElementById('km-total-mes').innerText = `${totalMes} km`;
+            }
         }
 
-        window.excluirRota = function(id) { if (confirm("Excluir esta entrega?")) set(ref(db, 'entregas/' + id), null); }
-        window.excluirTudo = function() { if (confirm("Apagar todas as entregas desta visão?")) set(rotasRef, null); }
+        function renderizarClientes() {
+            const container = document.getElementById('clientes-lista-container') || document.getElementById('container-clientes');
+            if(!container) return;
+            container.innerHTML = "";
+
+            let clientesMap = new Map();
+            rotas.forEach(r => {
+                if(!r.cliente) return;
+                const key = r.cliente.toLowerCase().trim();
+                if(!clientesMap.has(key)) {
+                    clientesMap.set(key, {
+                        nome: r.cliente,
+                        contato: r.contato || '',
+                        cidade: r.cidade || '',
+                        entregas: []
+                    });
+                }
+                clientesMap.get(key).entregas.push(r);
+            });
+
+            if(clientesMap.size === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #888; padding: 20px;">Nenhum cliente cadastrado no histórico.</div>`;
+                return;
+            }
+
+            clientesMap.forEach((clienteObj) => {
+                const card = document.createElement('div');
+                card.className = 'cliente-card';
+                
+                let historicoHTML = "";
+                clienteObj.entregas.forEach(ent => {
+                    historicoHTML += `
+                        <div class="cliente-historico-item">
+                            <div>📅 <strong>Data:</strong> ${ent.dataCriacao || ent.abaData || 'N/I'} | <strong>Status:</strong> ${ent.concluida ? '✅ Entregue' : (ent.devolvida ? '🔄 Devolvido' : '⏳ Em Aberto')}</div>
+                            <div>📍 ${ent.rua || ''} - ${ent.bairro || ''}</div>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="cliente-header">
+                        <span>👤 ${clienteObj.nome}</span>
+                        <span class="badge-sup">${clienteObj.entregas.length} pedido(s)</span>
+                    </div>
+                    ${clienteObj.contato ? `<div style="font-size: 13px; color: #555;">📞 Contato: ${clienteObj.contato}</div>` : ''}
+                    <div style="margin-top: 8px;">
+                        <strong>Histórico de Pedidos:</strong>
+                        ${historicoHTML}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.filtrarListaClientes = function(termo) {
+            const cards = document.querySelectorAll('.cliente-card');
+            const termoLower = termo.toLowerCase();
+            cards.forEach(c => {
+                const txt = c.innerText.toLowerCase();
+                c.style.display = txt.includes(termoLower) ? 'block' : 'none';
+            });
+        };
+
+        window.registrarOcorrenciaSuporte = function(e) {
+            e.preventDefault();
+            const titulo = document.getElementById('sup-titulo').value.trim();
+            const obs = document.getElementById('sup-obs').value.trim();
+
+            const novaOcorrencia = {
+                titulo,
+                obs,
+                data: new Date().toLocaleString('pt-BR'),
+                resolvido: false
+            };
+
+            push(ref(db, 'suporte'), novaOcorrencia).then(() => {
+                document.getElementById('suporte-form').reset();
+                alert("Ocorrência de suporte registrada!");
+            });
+        };
+
+        function renderizarSuporte() {
+            const container = document.getElementById('suporte-lista-container') || document.getElementById('container-suporte');
+            if(!container) return;
+            container.innerHTML = "";
+
+            if(ocorrenciasSuporte.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #888; padding: 20px;">Nenhuma ocorrência registrada.</div>`;
+                return;
+            }
+
+            ocorrenciasSuporte.forEach(sup => {
+                const card = document.createElement('div');
+                card.className = `suporte-card ${sup.resolvido ? 'resolvido' : ''}`;
+                card.innerHTML = `
+                    <div class="suporte-header">
+                        <span>🎧 ${sup.titulo || sup.cliente || 'Ocorrência'}</span>
+                        <span class="badge-sup ${sup.resolvido ? '' : 'badge-tipo'}">${sup.resolvido ? 'Resolvido' : 'Em Aberto'}</span>
+                    </div>
+                    <div style="font-size: 13px; color: #444; margin-top: 6px;">
+                        <p style="margin: 4px 0;"><strong>Detalhes:</strong> ${sup.obs}</p>
+                        <p style="margin: 4px 0;"><strong>Registrado às:</strong> ${sup.data}</p>
+                    </div>
+                    ${!sup.resolvido ? `<button class="btn-action btn-check" style="width: 100%; margin-top: 8px;" onclick="resolverOcorrencia('${sup.id}')">Marcar como Resolvido</button>` : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.resolverOcorrencia = function(id) {
+            update(ref(db, 'suporte/' + id), { resolvido: true, status: 'Resolvido' });
+        };
 
         window.exportarBackup = async function() {
             try {
-                const databaseRef = ref(db);
-                const snapshot = await get(databaseRef);
+                const snapshot = await get(ref(db));
                 if (snapshot.exists()) {
                     const dadosCompletos = snapshot.val();
                     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dadosCompletos, null, 2));
                     const downloadAnchor = document.createElement('a');
-                    const dataHoje = new Date().toISOString().split('T')[0];
                     downloadAnchor.setAttribute("href", dataStr);
-                    downloadAnchor.setAttribute("download", `backup_logistica_${dataHoje}.json`);
+                    downloadAnchor.setAttribute("download", `backup_logistica_${hojeISO}.json`);
                     document.body.appendChild(downloadAnchor);
                     downloadAnchor.click();
                     downloadAnchor.remove();
@@ -1461,253 +1835,28 @@
                 }
             } catch (error) {
                 console.error(error);
-                alert("Erro ao gerar backup de segurança.");
+                alert("Erro ao exportar backup: " + error.message);
             }
-        }
+        };
 
         window.importarBackup = function(event) {
-            const arquivo = event.target.files[0];
-            if (!arquivo) return;
-
-            const leitor = new FileReader();
-            leitor.onload = function(e) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
                 try {
                     const dadosImportados = JSON.parse(e.target.result);
-                    if (confirm("Atenção! Isso substituirá os dados atuais. Deseja prosseguir?")) {
-                        set(ref(db), dadosImportados)
-                            .then(() => alert("Backup importado com sucesso!"))
-                            .catch(() => alert("Erro ao salvar no Firebase."));
+                    if (confirm("⚠️ Importar este arquivo substituirá ou mesclará os dados atuais. Deseja prosseguir?")) {
+                        set(ref(db), dadosImportados).then(() => {
+                            alert("Backup restaurado com sucesso no Firebase!");
+                        });
                     }
                 } catch (error) {
-                    alert("Arquivo de backup inválido ou corrompido.");
+                    alert("Arquivo JSON inválido.");
                 }
-                event.target.value = ""; 
             };
-            leitor.readAsText(arquivo);
-        }
-
-        function renderizarCards() {
-            const container = document.getElementById('container-entregas');
-            const totalBadge = document.getElementById('total-entregas');
-            container.innerHTML = "";
-
-            const filtroDataSel = document.getElementById('filter-date').value; 
-            const filtroMotoristaSel = document.getElementById('filter-driver').value;
-
-            let rotasFiltradas = rotas.filter(r => {
-                let dataMatch = false;
-                if (r.abaData) {
-                    if (r.abaData === "Hoje" && filtroDataSel === hojeInput) dataMatch = true;
-                    else dataMatch = (r.abaData === filtroDataSel);
-                } else {
-                    dataMatch = (filtroDataSel === hojeInput);
-                }
-
-                const driverMatch = r.abaMotorista ? r.abaMotorista === filtroMotoristaSel : filtroMotoristaSel === "Carlos";
-                let bairroMatch = true;
-                if (bairroSelecionado !== "Todos") {
-                    bairroMatch = r.bairro && (r.bairro.trim() === bairroSelecionado);
-                }
-
-                return dataMatch && driverMatch && bairroMatch;
-            });
-
-            rotasFiltradas.sort((a, b) => {
-                const seqA = a.sequencia !== undefined && a.sequencia !== "" ? parseInt(a.sequencia) : 99999;
-                const seqB = b.sequencia !== undefined && b.sequencia !== "" ? parseInt(b.sequencia) : 99999;
-                if (seqA !== seqB) return seqA - seqB;
-                return new Date(b.data) - new Date(a.data);
-            });
-
-            totalBadge.innerText = `Total: ${rotasFiltradas.length} entrega(s)`;
-            
-            let somaPix = 0;
-            let somaDinheiro = 0;
-            let somaCredito = 0;
-            let somaDebito = 0;
-            let somaTotalGeral = 0;
-
-            if (rotasFiltradas.length === 0) {
-                container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma rota pendente para os filtros selecionados.</p>";
-                atualizarPainelResumo(0, 0, 0, 0, 0);
-                return;
+            if(event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0]);
             }
-
-            rotasFiltradas.forEach(rota => {
-                const dataFormatada = formatarDataHoraCard(rota.data);
-                let classeEstado = '';
-                if (rota.concluida) classeEstado = 'concluida';
-                else if (rota.devolvida) classeEstado = 'devolvida';
-
-                const textoBotaoConcluir = rota.concluida ? '↩️ Refazer' : '✅ Concluir';
-                const textoBotaoDevolucao = rota.devolvida ? '↩️ Cancelar Recusa' : '↩️ Devolução';
-                
-                const contatoComprador = rota.contato || "";
-                const numSequencia = rota.sequencia !== undefined ? rota.sequencia : "";
-                const hSaida = rota.horaSaida || "";
-                const hChegada = rota.horaChegada || "";
-                const bairroTexto = rota.bairro || "Não informado";
-                const motoristaAtual = rota.abaMotorista || "Carlos";
-
-                let htmlPecas = "";
-                let valorTotalGeral = 0;
-
-                if (rota.pecas && rota.pecas.length > 0) {
-                    rota.pecas.forEach(p => {
-                        const valNum = limparEConverterValor(p.valor);
-                        htmlPecas += `<div><span>• ${p.nome}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
-                        valorTotalGeral += valNum;
-                    });
-                } else if (rota.peca) { 
-                    const valNum = limparEConverterValor(rota.valor);
-                    htmlPecas += `<div><span>• ${rota.peca}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
-                    valorTotalGeral = valNum;
-                }
-
-                let htmlPagamentos = "";
-                let totalPago = 0;
-
-                if (rota.pagamentos && rota.pagamentos.length > 0) {
-                    rota.pagamentos.forEach(pag => {
-                        const valNum = limparEConverterValor(pag.valor);
-                        htmlPagamentos += `<div><span>💳 ${pag.forma}</span> <span>R$ ${valNum.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>`;
-                        totalPago += valNum;
-
-                        if (!rota.devolvida) {
-                            if (pag.forma === "PIX") somaPix += valNum;
-                            else if (pag.forma === "Dinheiro") somaDinheiro += valNum;
-                            else if (pag.forma === "Cartão de Crédito") somaCredito += valNum;
-                            else if (pag.forma === "Cartão de Débito") somaDebito += valNum;
-                            somaTotalGeral += valNum;
-                        }
-                    });
-                }
-
-                let htmlComprovantes = "";
-                if (rota.fotoComprovante || rota.assinaturaDigital) {
-                    htmlComprovantes += `<div class="comprovantes-preview-container">`;
-                    if (rota.fotoComprovante) {
-                        htmlComprovantes += `<img src="${rota.fotoComprovante}" class="comprovante-thumb" onclick="window.open('${rota.fotoComprovante}')" title="Foto do Comprovante">`;
-                    }
-                    if (rota.assinaturaDigital) {
-                        htmlComprovantes += `<img src="${rota.assinaturaDigital}" class="comprovante-thumb" onclick="window.open('${rota.assinaturaDigital}')" title="Assinatura do Cliente">`;
-                    }
-                    htmlComprovantes += `</div>`;
-                }
-
-                container.innerHTML += `
-                    <div class="delivery-card ${classeEstado}">
-                        <div class="card-header">
-                            <h4 class="card-title">${rota.cliente}</h4>
-                            <div class="badges-wrapper">
-                                <span class="card-neighborhood-badge">📍 ${bairroTexto}</span>
-                                ${numSequencia ? `<span class="card-sequence-badge">Posição: ${numSequencia}º</span>` : ''}
-                                <span class="card-date">${dataFormatada}</span>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <p><strong>Lista de Peças:</strong></p>
-                            <div class="card-pecas-list">${htmlPecas}</div>
-                            <p><strong>Valor Total das Peças:</strong> R$ ${valorTotalGeral.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                            
-                            ${htmlPagamentos ? `
-                            <p><strong>Formas de Pagamento:</strong></p>
-                            <div class="card-pagamentos-list">${htmlPagamentos}</div>
-                            <p><strong>Total Pago:</strong> R$ ${totalPago.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                            ` : ''}
-
-                            <p><strong>Endereço:</strong> ${rota.rua}, ${rota.cidade}</p>
-                            <p><strong>CEP:</strong> ${rota.cep}</p>
-                            ${contatoComprador ? `<p><strong>Contato:</strong> ${contatoComprador}</p>` : ''}
-                            ${rota.obs ? `<p class="obs-alert">⚠️ <strong>Obs:</strong> ${rota.obs}</p>` : ''}
-                            ${rota.motivoDevolucao ? `<span class="motivo-alert">🚫 Motivo Recusa: ${rota.motivoDevolucao}</span>` : ''}
-                            
-                            ${htmlComprovantes}
-
-                            <div class="driver-status-section">
-                                <div class="config-row">
-                                    <div class="config-group">
-                                        <label>⏰ Saída Motorista:</label>
-                                        <input type="time" value="${hSaida}" onchange="atualizarDadoEntrega('${rota.id}', 'horaSaida', this.value)">
-                                    </div>
-                                    <div class="config-group">
-                                        <label>🏁 Chegada Local:</label>
-                                        <input type="time" value="${hChegada}" onchange="atualizarDadoEntrega('${rota.id}', 'horaChegada', this.value)">
-                                    </div>
-                                </div>
-                                <div class="config-row">
-                                    <div class="config-group">
-                                        <label>👤 Mudar Motorista:</label>
-                                        <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)">
-                                            <option value="Carlos" ${motoristaAtual === 'Carlos' ? 'selected' : ''}>Carlos</option>
-                                            <option value="Luiz Marcelo" ${motoristaAtual === 'Luiz Marcelo' ? 'selected' : ''}>Luiz Marcelo</option>
-                                            <option value="Barbosa" ${motoristaAtual === 'Barbosa' ? 'selected' : ''}>Barbosa</option>
-                                        </select>
-                                    </div>
-                                    <div class="config-group">
-                                        <label>🔢 Alterar Posição:</label>
-                                        <input type="number" value="${numSequencia}" placeholder="Ex: 1" onchange="atualizarDadoEntrega('${rota.id}', 'sequencia', this.value)" min="1">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn-action btn-gps" onclick="abrirNoGps('${rota.rua}', '${rota.cidade}')">🗺️ GPS</button>
-                            ${contatoComprador ? `<button class="btn-action btn-whatsapp" onclick="abrirContato('${contatoComprador}')">💬 Contato</button>` : ''}
-                            <button class="btn-action btn-camera" onclick="tirarFotoEntrega('${rota.id}')">📷 Foto</button>
-                            <button class="btn-action btn-assinatura" onclick="abrirModalAssinatura('${rota.id}')">✍️ Assinar</button>
-                            <button class="btn-action btn-edit" onclick="abrirModalEditar('${rota.id}')">✍️ Editar</button>
-                            <button class="btn-action btn-check" onclick="alternarConclusao('${rota.id}')">${textoBotaoConcluir}</button>
-                            <button class="btn-action btn-devolucao" onclick="alternarDevolucao('${rota.id}')">${textoBotaoDevolucao}</button>
-                            <button class="btn-action btn-delete" onclick="excluirRota('${rota.id}')">🗑️</button>
-                        </div>
-                    </div>
-                `;
-            });
-
-            atualizarPainelResumo(somaPix, somaDinheiro, somaCredito, somaDebito, somaTotalGeral);
-        }
-
-        function renderizarSuporte() {
-            const container = document.getElementById('container-suporte');
-            container.innerHTML = "";
-
-            if(listaSuporte.length === 0) {
-                container.innerHTML = "<p style='text-align:center; color:#888; padding: 20px;'>Nenhuma ocorrência registrada no suporte.</p>";
-                return;
-            }
-
-            listaSuporte.sort((a, b) => (a.status === 'Resolvido') ? 1 : -1);
-
-            listaSuporte.forEach(sup => {
-                const resolvido = sup.status === 'Resolvido';
-                container.innerHTML += `
-                    <div class="suporte-card ${resolvido ? 'resolvido' : ''}">
-                        <div class="suporte-header">
-                            <span>${sup.cliente}</span>
-                            <div>
-                                <span class="badge-sup badge-tipo">${sup.tipo}</span>
-                                <span class="badge-sup">👤 ${sup.motorista}</span>
-                            </div>
-                        </div>
-                        <div style="font-size: 13px; color: #444; margin: 6px 0;">
-                            <p style="margin: 4px 0;"><strong>Detalhes:</strong> ${sup.obs}</p>
-                            <p style="margin: 4px 0;"><strong>Registrado às:</strong> ${sup.data}</p>
-                            <p style="margin: 4px 0;"><strong>Status:</strong> ${resolvido ? '✅ Resolvido' : '⏳ Em Aberto'}</p>
-                        </div>
-                        ${!resolvido ? `<button class="btn-action btn-check" style="width: 100%; margin-top: 8px;" onclick="resolverOcorrencia('${sup.id}')">Marcar como Resolvido</button>` : ''}
-                    </div>
-                `;
-            });
-        }
-
-        function atualizarPainelResumo(pix, dinheiro, credito, debito, total) {
-            document.getElementById('resumo-pix').innerText = "R$ " + pix.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            document.getElementById('resumo-dinheiro').innerText = "R$ " + dinheiro.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            document.getElementById('resumo-credito').innerText = "R$ " + credito.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            document.getElementById('resumo-debito').innerText = "R$ " + debito.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            document.getElementById('resumo-total-geral').innerText = "R$ " + total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        }
+        };
     </script>
 </body>
 </html>
