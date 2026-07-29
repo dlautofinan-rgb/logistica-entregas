@@ -348,50 +348,6 @@
         .badge-tipo { background-color: var(--devolucao); }
 
         .cliente-historico-item { background: #f8f9fa; border-radius: 6px; padding: 8px; margin-top: 6px; font-size: 12px; border-left: 3px solid #ced4da; }
-    
-        /* Container de PDF recolhido e botão inteligente */
-        .pdf-preview-box {
-            display: none;
-            margin-top: 10px;
-            background: #ffffff;
-            border: 2px solid var(--primary, #007BFF);
-            border-radius: 8px;
-            padding: 6px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-        }
-
-        .pdf-frame-custom {
-            width: 100%;
-            height: 380px;
-            border: none;
-            border-radius: 6px;
-            background: #f8f9fa;
-        }
-
-        .btn-pdf-smart {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 8px;
-            margin-right: 6px;
-        }
-
-        #signature-pad {
-            border: 2px dashed var(--primary);
-            border-radius: 8px;
-            background-color: #fafafa;
-            touch-action: none;
-            width: 100%;
-            height: 180px;
-        }
     </style>
 </head>
 <body>
@@ -404,7 +360,6 @@
         <h1 id="app-title">📦 Logística de Entregas</h1>
         <button class="menu-btn" onclick="toggleMenu()">⋮</button>
         <div id="dropdown-menu" class="dropdown-menu">
-            <button onclick="trocarAba('pdfs')">📄 Busca de PDFs por Cliente</button>
             <button onclick="trocarAba('entregas')">📦 Entregas & Rotas</button>
             <button onclick="trocarAba('km')">📊 Relatório de KM</button>
             <button onclick="trocarAba('clientes')">👥 Clientes Cadastrados</button>
@@ -773,13 +728,7 @@
         import { getDatabase, ref, set, onValue, push, remove, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyCuFiZ4H9u3-od3lVXy2BXLiPHmnQRw1Lw",
-            authDomain: "dl-auto-33f62.firebaseapp.com",
-            databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com",
-            projectId: "dl-auto-33f62",
-            storageBucket: "dl-auto-33f62.firebasestorage.app",
-            messagingSenderId: "81729132461",
-            appId: "1:81729132461:web:35c1579e8b3d4f91863324"
+            databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com" || "https://minha-rota-3467e-default-rtdb.firebaseio.com/" || "https://dlrotas-default-rtdb.firebaseio.com/"
         };
 
         let app, db;
@@ -1174,30 +1123,24 @@
             document.getElementById('f-cidade').value = 'Castro - PR';
         }
 
-        
-        let dadosEGlobal = {};
-        let dadosRGlobal = {};
+        function escutarBancoDeDados() {
+            onValue(ref(db, 'entregas'), (snapshot) => {
+                const dadosEntregas = snapshot.exists() ? snapshot.val() : {};
+                onValue(ref(db, 'rotas'), (snap2) => {
+                    const dadosRotas = snap2.exists() ? snap2.val() : {};
+                    processarDadosCombined(dadosEntregas, dadosRotas);
+                });
+            });
+        }
 
-        function atualizarDadosGerais() {
+        function processarDadosCombined(dadosE, dadosR) {
             rotas = [];
-            const combinados = { ...dadosRGlobal, ...dadosEGlobal };
+            const combinados = { ...dadosR, ...dadosE };
             for (let key in combinados) {
                 rotas.push({ id: key, ...combinados[key] });
             }
             renderizarRotas();
         }
-
-        function escutarBancoDeDados() {
-            onValue(ref(db, 'entregas'), (snapshot) => {
-                dadosEGlobal = snapshot.exists() ? snapshot.val() : {};
-                atualizarDadosGerais();
-            });
-            onValue(ref(db, 'rotas'), (snapshot) => {
-                dadosRGlobal = snapshot.exists() ? snapshot.val() : {};
-                atualizarDadosGerais();
-            });
-        }
-
 
         escutarBancoDeDados();
 
@@ -1372,27 +1315,10 @@
                 let pdfHTML = "";
                 if (rota.pdfDocumento) {
                     pdfHTML = `
-                        <div style="margin-top: 8px;">
-                            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-                                <button type="button" class="btn-action" style="background-color: #007BFF; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;" onclick="abrirPdfComoBlob('${rota.pdfDocumento}', '${rota.cliente || 'Documento'}')">
-                                    📄 Ver PDF na Tela
-                                </button>
-                                <button type="button" class="btn-action" style="background-color: #28a745; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;" onclick="abrirModalAssinatura('${rota.id}')">
-                                    ✍️ Assinar
-                                </button>
-                                <button type="button" class="btn-action" style="background-color: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;" onclick="removerPdfEntrega('${rota.id}')">
-                                    🗑️ Excluir PDF
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                if (rota.assinatura) {
-                    pdfHTML += `
-                        <div style="margin-top: 6px; font-size: 11px;">
-                            <strong>Assinatura do Cliente:</strong><br>
-                            <img src="${rota.assinatura}" style="max-width: 150px; background: white; border: 1px solid #ccc; border-radius: 4px; padding: 2px; margin-top: 2px;">
+                        <div style="margin-top: 6px;">
+                            <a href="${rota.pdfDocumento}" target="_blank" class="btn-action btn-pdf-view">
+                                📄 Ver PDF da Conta/Papel
+                            </a>
                         </div>
                     `;
                 }
@@ -1489,26 +1415,11 @@
             update(ref(db, 'entregas/' + id), updateObj).catch(() => update(ref(db, 'rotas/' + id), updateObj));
         };
 
-        
         window.deletarEntrega = function(id) {
             if(confirm("Deseja realmente apagar esta entrega do sistema?")) {
-                if(window.rotas) {
-                    window.rotas = window.rotas.filter(r => r.id != id);
-                }
-                if(typeof rotas !== 'undefined') {
-                    rotas = rotas.filter(r => r.id != id);
-                }
-                renderizarRotas();
-
-                set(ref(db, 'entregas/' + id), null).catch(() => {});
-                set(ref(db, 'rotas/' + id), null).catch(() => {});
-                remove(ref(db, 'entregas/' + id)).catch(() => {});
-                remove(ref(db, 'rotas/' + id)).catch(() => {});
-                
-                alert("🗑️ Entrega excluída com sucesso!");
+                remove(ref(db, 'entregas/' + id)).catch(() => remove(ref(db, 'rotas/' + id)));
             }
         };
-
 
         window.apagarTodasRotas = function() {
             if(confirm("⚠️ ATENÇÃO: Deseja REALMENTE excluir TODAS as entregas cadastradas no Firebase?")) {
@@ -1947,241 +1858,5 @@
             }
         };
     </script>
-
-    <!-- MODAL ASSINATURA -->
-    <div id="modal-assinatura" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 12px;">
-        <div style="background: white; padding: 20px; border-radius: 12px; width: 100%; max-width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3 style="margin: 0; font-size: 16px;">✍️ Assinatura do Cliente</h3>
-                <button onclick="fecharModalAssinatura()" style="border: none; background: none; font-size: 22px; cursor: pointer; color: #666;">×</button>
-            </div>
-            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Solicite ao cliente para assinar na caixa abaixo:</p>
-            <canvas id="signature-pad"></canvas>
-            <div style="display: flex; gap: 8px; margin-top: 12px;">
-                <button type="button" class="btn" style="background-color: #6c757d; color: white;" onclick="limparAssinatura()">🧹 Limpar</button>
-                <button type="button" class="btn btn-submit" onclick="salvarAssinatura()">💾 Salvar Assinatura</button>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- MODAL FOTO / PDF VISUALIZADOR -->
-    <div id="modal-foto-pdf" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 4000; justify-content: center; align-items: center; padding: 10px; flex-direction: column;">
-        <div style="background: white; width: 100%; max-width: 650px; height: 90vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 25px rgba(0,0,0,0.4);">
-            <div style="background: var(--primary); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 id="titulo-modal-foto" style="margin: 0; font-size: 15px; font-weight: bold;">📄 Visualizador de Documento</h3>
-                <button onclick="fecharFotoPdf()" style="border: none; background: none; font-size: 26px; cursor: pointer; color: white; font-weight: bold;">×</button>
-            </div>
-            <div style="flex: 1; background: #222; position: relative; overflow: auto; display: flex; justify-content: center; align-items: center;">
-                <iframe id="iframe-foto-pdf" style="width: 100%; height: 100%; border: none; background: white;"></iframe>
-            </div>
-            <div style="padding: 10px; background: #f8f9fa; text-align: right;">
-                <button type="button" class="btn" style="background-color: #6c757d; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;" onclick="fecharFotoPdf()">Fechar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL ASSINATURA -->
-    <div id="modal-assinatura" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 12px;">
-        <div style="background: white; padding: 20px; border-radius: 12px; width: 100%; max-width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3 style="margin: 0; font-size: 16px;">✍️ Assinatura do Cliente</h3>
-                <button onclick="fecharModalAssinatura()" style="border: none; background: none; font-size: 22px; cursor: pointer; color: #666;">×</button>
-            </div>
-            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Solicite ao cliente para assinar na caixa abaixo:</p>
-            <canvas id="signature-pad" style="border: 2px dashed #007BFF; border-radius: 8px; background-color: #fafafa; touch-action: none; width: 100%; height: 180px;"></canvas>
-            <div style="display: flex; gap: 8px; margin-top: 12px;">
-                <button type="button" class="btn" style="background-color: #6c757d; color: white;" onclick="limparAssinatura()">🧹 Limpar</button>
-                <button type="button" class="btn btn-submit" onclick="salvarAssinatura()">💾 Salvar Assinatura</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        window.abrirPdfComoBlob = function(base64Data, clienteNome) {
-            try {
-                if(!base64Data.startsWith('data:')) {
-                    // Se for URL normal
-                    const modal = document.getElementById('modal-foto-pdf');
-                    const iframe = document.getElementById('iframe-foto-pdf');
-                    const titulo = document.getElementById('titulo-modal-foto');
-                    if(modal && iframe) {
-                        titulo.innerText = `📄 Documento - ${clienteNome}`;
-                        iframe.src = base64Data;
-                        modal.style.display = 'flex';
-                    }
-                    return;
-                }
-
-                const arr = base64Data.split(',');
-                const mimeMatch = arr[0].match(/:(.*?);/);
-                const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
-                const bstr = atob(arr[1]);
-                let n = bstr.length;
-                const u8arr = new Uint8Array(n);
-                while(n--) {
-                    u8arr[n] = bstr.charCodeAt(n);
-                }
-                const blob = new Blob([u8arr], {type: mime});
-                const blobUrl = URL.createObjectURL(blob);
-
-                const modal = document.getElementById('modal-foto-pdf');
-                const iframe = document.getElementById('iframe-foto-pdf');
-                const titulo = document.getElementById('titulo-modal-foto');
-                if(modal && iframe) {
-                    titulo.innerText = `📄 Documento - ${clienteNome}`;
-                    iframe.src = blobUrl;
-                    modal.style.display = 'flex';
-                }
-            } catch(e) {
-                console.error("Erro ao converter blob:", e);
-                // Fallback direto
-                const modal = document.getElementById('modal-foto-pdf');
-                const iframe = document.getElementById('iframe-foto-pdf');
-                if(modal && iframe) {
-                    iframe.src = base64Data;
-                    modal.style.display = 'flex';
-                }
-            }
-        };
-
-        window.fecharFotoPdf = function() {
-            const modal = document.getElementById('modal-foto-pdf');
-            const iframe = document.getElementById('iframe-foto-pdf');
-            if(modal) modal.style.display = 'none';
-            if(iframe) iframe.src = '';
-        };
-
-        window.removerPdfEntrega = function(id) {
-            if(confirm("Tem certeza que deseja excluir o PDF desta entrega?")) {
-                const ent = (window.rotas || []).find(r => r.id === id);
-                if(ent) {
-                    ent.pdfDocumento = null;
-                    set(ref(db, 'entregas/' + id + '/pdfDocumento'), null).catch(() => {});
-                    set(ref(db, 'rotas/' + id + '/pdfDocumento'), null).catch(() => {});
-                    update(ref(db, 'entregas/' + id), { pdfDocumento: null }).catch(() => {});
-                    update(ref(db, 'rotas/' + id), { pdfDocumento: null }).catch(() => {});
-                    alert("🗑️ PDF excluído com sucesso!");
-                    renderizarRotas();
-                    if(document.getElementById('view-pdfs')?.style.display === 'block') {
-                        buscarPdfsClientes();
-                    }
-                }
-            }
-        };
-
-        window.buscarPdfsClientes = function() {
-            const termo = (document.getElementById('pdf-search-input')?.value || '').toLowerCase();
-            const container = document.getElementById('pdf-search-results');
-            if(!container) return;
-            container.innerHTML = '';
-
-            const lista = window.rotas || [];
-            const filtrados = lista.filter(e => e.pdfDocumento && ((e.cliente && e.cliente.toLowerCase().includes(termo)) || (e.bairro && e.bairro.toLowerCase().includes(termo)) || (e.rua && e.rua.toLowerCase().includes(termo))));
-
-            if(filtrados.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#888; margin-top:20px;">Nenhum documento PDF encontrado para esta busca.</p>';
-                return;
-            }
-
-            filtrados.forEach(item => {
-                let assinaturaHTML = "";
-                if (item.assinatura) {
-                    assinaturaHTML = `
-                        <div style="margin-top: 6px; font-size: 11px;">
-                            <strong>Assinatura do Cliente:</strong><br>
-                            <img src="${item.assinatura}" style="max-width: 150px; background: white; border: 1px solid #ccc; border-radius: 4px; padding: 2px; margin-top: 2px;">
-                        </div>
-                    `;
-                }
-
-                const card = document.createElement('div');
-                card.className = 'delivery-card';
-                card.innerHTML = `
-                    <div class="card-header">
-                        <h4 class="card-title">👤 ${item.cliente || 'Cliente'}</h4>
-                        <span class="card-neighborhood-badge">${item.bairro || 'Geral'}</span>
-                    </div>
-                    <p style="font-size: 12px; color: #555; margin-top: 4px;">📍 ${item.rua || item.endereco || ''}</p>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
-                        <button type="button" class="btn-action" style="background-color: #007BFF; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;" onclick="abrirPdfComoBlob('${item.pdfDocumento}', '${item.cliente || 'Cliente'}')">📄 Ver PDF na Tela</button>
-                        <button type="button" class="btn-action" style="background-color: #28a745; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;" onclick="abrirModalAssinatura('${item.id}')">✍️ Assinar</button>
-                        <button type="button" class="btn-action" style="background-color: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;" onclick="removerPdfEntrega('${item.id}')">🗑️ Excluir PDF</button>
-                    </div>
-                    ${assinaturaHTML}
-                `;
-                container.appendChild(card);
-            });
-        };
-
-        let canvasSig, ctxSig, desenhandoSig = false, entregaAtualSigId = null;
-
-        function initSignaturePad() {
-            canvasSig = document.getElementById('signature-pad');
-            if(!canvasSig) return;
-            ctxSig = canvasSig.getContext('2d');
-
-            function resizeCanvas() {
-                canvasSig.width = canvasSig.offsetWidth || 300;
-                canvasSig.height = 180;
-                ctxSig.strokeStyle = "#000";
-                ctxSig.lineWidth = 2.5;
-            }
-            window.removeEventListener("resize", resizeCanvas);
-            window.addEventListener("resize", resizeCanvas);
-            resizeCanvas();
-
-            function getPos(e) {
-                const rect = canvasSig.getBoundingClientRect();
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                return { x: clientX - rect.left, y: clientY - rect.top };
-            }
-
-            canvasSig.onmousedown = (e) => { desenhandoSig = true; const p = getPos(e); ctxSig.beginPath(); ctxSig.moveTo(p.x, p.y); };
-            canvasSig.onmousemove = (e) => { if(desenhandoSig) { const p = getPos(e); ctxSig.lineTo(p.x, p.y); ctxSig.stroke(); } };
-            canvasSig.onmouseup = () => desenhandoSig = false;
-
-            canvasSig.ontouchstart = (e) => { desenhandoSig = true; const p = getPos(e); ctxSig.beginPath(); ctxSig.moveTo(p.x, p.y); e.preventDefault(); };
-            canvasSig.ontouchmove = (e) => { if(desenhandoSig) { const p = getPos(e); ctxSig.lineTo(p.x, p.y); ctxSig.stroke(); e.preventDefault(); } };
-            canvasSig.ontouchend = () => desenhandoSig = false;
-        }
-
-        window.abrirModalAssinatura = function(id) {
-            entregaAtualSigId = id;
-            const modal = document.getElementById('modal-assinatura');
-            if(modal) {
-                modal.style.display = 'flex';
-                setTimeout(initSignaturePad, 50);
-            }
-        };
-
-        window.fecharModalAssinatura = function() {
-            const modal = document.getElementById('modal-assinatura');
-            if(modal) modal.style.display = 'none';
-        };
-
-        window.limparAssinatura = function() {
-            if(ctxSig && canvasSig) ctxSig.clearRect(0, 0, canvasSig.width, canvasSig.height);
-        };
-
-        window.salvarAssinatura = function() {
-            if(!entregaAtualSigId || !canvasSig) return;
-            const dataUrl = canvasSig.toDataURL();
-            
-            const ent = (window.rotas || []).find(r => r.id === entregaAtualSigId);
-            if(ent) {
-                ent.assinatura = dataUrl;
-                update(ref(db, 'rotas/' + entregaAtualSigId), { assinatura: dataUrl }).catch(() => {
-                    update(ref(db, 'entregas/' + entregaAtualSigId), { assinatura: dataUrl });
-                });
-            }
-            
-            alert('✍️ Assinatura registada com sucesso no documento!');
-            fecharModalAssinatura();
-            renderizarRotas();
-        };
-    </script>
-
 </body>
 </html>
