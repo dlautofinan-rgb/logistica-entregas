@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1313,15 +1314,15 @@
                 }
 
                 let pdfHTML = "";
-                if (rota.pdfDocumento) {
-                    pdfHTML = `
-                        <div style="margin-top: 6px;">
-                            <a href="${rota.pdfDocumento}" target="_blank" class="btn-action btn-pdf-view">
-                                📄 Ver PDF da Conta/Papel
-                            </a>
-                        </div>
-                    `;
-                }
+if (rota.pdfDocumento) {
+    pdfHTML = `
+        <div style="margin-top: 6px;">
+            <button type="button" onclick="visualizarDocumento('${rota.id}')" class="btn-action btn-pdf-view">
+                📄 Ver Foto/PDF
+            </button>
+        </div>
+    `;
+}
 
                 let comprovanteHTML = "";
                 const assDigit = rota.assinatura || rota.assinaturaDigital;
@@ -1857,6 +1858,39 @@
                 fileReader.readAsText(event.target.files[0]);
             }
         };
+window.visualizarDocumento = function(id) {
+    const rota = (typeof rotas !== 'undefined' ? rotas : entregasGlobais).find(r => r.id === id);
+    if (!rota || !rota.pdfDocumento) {
+        alert("Nenhum documento/foto encontrado.");
+        return;
+    }
+
+    const docData = rota.pdfDocumento;
+    const novaAba = window.open();
+
+    if (novaAba) {
+        novaAba.document.write(`
+            <html>
+                <head>
+                    <title>Foto / Documento - ${rota.cliente || 'Entrega'}</title>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        body { margin:0; background:#000; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+                        img, iframe { max-width:100%; max-height:100vh; object-fit:contain; border:none; }
+                    </style>
+                </head>
+                <body>
+                    ${docData.startsWith('data:image/') || docData.startsWith('http')
+                        ? `<img src="${docData}" alt="Comprovante">` 
+                        : `<iframe src="${docData}" width="100%" height="100%"></iframe>`
+                    }
+                </body>
+            </html>
+        `);
+    } else {
+        alert("Por favor, permita pop-ups no navegador para abrir a foto.");
+    }
+};
     </script>
 </body>
 </html>
