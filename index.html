@@ -1739,7 +1739,7 @@ if (rota.pdfDocumento) {
                 clienteObj.entregas.forEach(ent => {
                     historicoHTML += `
                         <div class="cliente-historico-item">
-                            <div>📅 <strong>Data:</strong> ${ent.dataCriacao || ent.abaData || 'N/I'} | <strong>Status:</strong> ${ent.concluida ? '✅ Entregue' : (ent.devolvida ? '🔄 Devolvido' : '⏳ Em Aberto')}</div>
+                            <div>📅 <strong>Data:</strong> ${ent.dataCriacao || ent.abaData || 'N/I'} | <strong>Status:</strong> ${ent.concluida ? '✅ Concluir' : (ent.devolvida ? '🔄 Devolvido' : '⏳ Em Aberto')}</div>
                             <div>📍 ${ent.rua || ''} - ${ent.bairro || ''}</div>
                         </div>
                     `;
