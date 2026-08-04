@@ -1030,7 +1030,7 @@
 
             const cliente = document.getElementById('f-cliente').value.trim();
             const contato = document.getElementById('f-contato').value.trim();
-            const bairro = document.getElementById('f-bairro').value.trim();
+            const bairro = document.getElementById('bairro').value.trim().toUpperCase();
             const cep = document.getElementById('f-cep').value.trim();
             const cidade = document.getElementById('f-cidade').value.trim();
             const rua = document.getElementById('f-ruas').value.trim();
@@ -1379,7 +1379,7 @@ if (rota.pdfDocumento) {
                         ${rota.contato ? `<button class="btn-action btn-whatsapp" onclick="abrirWhatsApp('${rota.contato}')">💬 Zap</button>` : ''}
                         <button class="btn-action btn-edit" onclick="abrirModalEditar('${rota.id}')">✏️ Editar</button>
                         <button class="btn-action btn-check" onclick="marcarConcluida('${rota.id}')">
-                            ${rota.concluida ? '↩️ Refazer' : '✅ Entregue'}
+                            ${rota.concluida ? '↩️ Refazer' : '✅ Concluir'}
                         </button>
                         <button class="btn-action btn-devolucao" onclick="iniciarDevolucao('${rota.id}')">🔄 Devolução</button>
                         <button class="btn-action btn-camera" onclick="capturarFotoComprovante('${rota.id}')">📸 Foto</button>
