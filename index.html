@@ -1,1896 +1,957 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Logística de Rotas & Suporte</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Entregas - Firebase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <meta name="theme-color" content="#007BFF">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="DL Rotas">
-    
-    <link rel="manifest" href='data:application/manifest+json,{"name":"DL Logística de Rotas","short_name":"DL Rotas","start_url":".","display":"standalone","background_color":"#f8f9fa","theme_color":"#007BFF","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/2838/2838694.png","sizes":"512x512","type":"image/png"}]}'>
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2838/2838694.png">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, get, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <style>
-        :root {
-            --primary: #007BFF;
-            --success: #28a745;
-            --danger: #dc3545;
-            --info: #17a2b8;
-            --bg: #f8f9fa;
-            --card-bg: #ffffff;
-            --text: #333333;
-            --whatsapp: #25D366;
-            --warning: #ffc107;
-            --devolucao: #e67e22;
-            --pagamento: #9b59b6;
-            --km-color: #20c997;
-            --optimize: #6f42c1;
+        const firebaseConfig = {
+            apiKey: "AIzaSyCuFiZ4H9u3-od3lVXy2BXLiPHmnQRw1Lw",
+            authDomain: "dl-auto-33f62.firebaseapp.com",
+            databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com",
+            projectId: "dl-auto-33f62",
+            storageBucket: "dl-auto-33f62.firebasestorage.app",
+            messagingSenderId: "81729132461",
+            appId: "1:81729132461:web:35c1579e8b3d4f91863324"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let deliveries = [];
+        let entregaSelecionadaId = null;
+        let bairroSelecionadoFiltro = '';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('data-entrega').value = hoje;
+            
+            // Mudar indicador visual para Nuvem Ativa
+            const statusBadge = document.getElementById('sync-status');
+            statusBadge.innerText = 'Online (Firebase)';
+            statusBadge.className = 'text-xs bg-green-500 text-white px-2 py-1 rounded font-semibold';
+
+            // Escutar alterações em tempo real no Realtime Database
+            const entregasRef = ref(db, 'entregas');
+            onValue(entregasRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    deliveries = Object.keys(data).map(key => ({
+                        id: key,
+                        ...data[key]
+                    }));
+                } else {
+                    deliveries = [];
+                }
+                atualizarChipsBairros();
+                atualizarDicasClientes();
+                renderDeliveries();
+                updateDashboard();
+            });
+
+            iniciarVerificadorBackupAutomatico();
+        });
+
+        // SALVAR OU ATUALIZAR NO FIREBASE
+        window.salvarNoFirebase = async function(entregaObj, editId = null) {
+            try {
+                if (editId) {
+                    const entregaRef = ref(db, 'entregas/' + editId);
+                    await set(entregaRef, entregaObj);
+                } else {
+                    const entregasRef = ref(db, 'entregas');
+                    const novaEntregaRef = push(entregasRef);
+                    await set(novaEntregaRef, entregaObj);
+                }
+            } catch (error) {
+                console.error("Erro ao salvar no Firebase:", error);
+                alert("Erro ao salvar dados na nuvem. Verifique sua conexão.");
+            }
+        };
+
+        // EXCLUIR DO FIREBASE
+        window.excluirEntregaFirebase = async function(id) {
+            if(confirm('Deseja excluir esta entrega?')) {
+                try {
+                    const entregaRef = ref(db, 'entregas/' + id);
+                    await remove(entregaRef);
+                } catch (error) {
+                    console.error("Erro ao excluir:", error);
+                }
+            }
+        };
+
+        // --- SISTEMA DE BACKUP AUTOMÁTICO (ÀS 15:00) ---
+        function realizarBackupAutomatico() {
+            const hojeStr = new Date().toISOString().split('T')[0];
+            const ultimoBackup = localStorage.getItem('ultimo_backup_data');
+
+            if (ultimoBackup !== hojeStr && deliveries.length > 0) {
+                const dataStr = JSON.stringify(deliveries, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup-entregas-${hojeStr}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                localStorage.setItem('ultimo_backup_data', hojeStr);
+            }
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            margin: 0;
-            padding: 12px;
-            color: var(--text);
-            box-sizing: border-box;
+        window.realizarBackupManual = function() {
+            if (deliveries.length === 0) {
+                alert('Não há entregas cadastradas para realizar o backup.');
+                return;
+            }
+            const hojeStr = new Date().toISOString().split('T')[0];
+            const dataStr = JSON.stringify(deliveries, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup-manual-${hojeStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
-        .offline-badge {
-            display: none;
-            background-color: var(--danger);
-            color: white;
-            text-align: center;
-            padding: 6px;
-            font-size: 12px;
-            font-weight: bold;
-            border-radius: 6px;
-            margin-bottom: 10px;
+        function iniciarVerificadorBackupAutomatico() {
+            setInterval(() => {
+                const agora = new Date();
+                const hora = agora.getHours();
+                const minuto = agora.getMinutes();
+
+                if (hora === 15 && minuto === 0) {
+                    realizarBackupAutomatico();
+                }
+            }, 60000);
         }
 
-        .app-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-            margin-bottom: 15px;
+        // PREENCHIMENTO AUTOMÁTICO PELO NOME DO CLIENTE JÁ CADASTRADO
+        window.atualizarDicasClientes = function() {
+            const datalist = document.getElementById('lista-clientes');
+            if(!datalist) return;
+            datalist.innerHTML = '';
+
+            // Mapeia clientes únicos pelo nome (pegando os dados mais recentes cadastrados para aquele cliente)
+            const clientesMap = {};
+            deliveries.forEach(d => {
+                if (d.cliente) {
+                    clientesMap[d.cliente.trim().toUpperCase()] = {
+                        cliente: d.cliente,
+                        contato: d.contato || '',
+                        cep: d.cep || '',
+                        rua: d.rua || '',
+                        numero: d.numero || '',
+                        bairro: d.bairro || '',
+                        cidade: d.cidade || ''
+                    };
+                }
+            });
+
+            Object.values(clientesMap).forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.cliente;
+                // Armazena os dados adicionais em atributos para resgatar no evento 'input'/'change'
+                option.dataset.contato = c.contato;
+                option.dataset.cep = c.cep;
+                option.dataset.rua = c.rua;
+                option.dataset.numero = c.numero;
+                option.dataset.bairro = c.bairro;
+                option.dataset.cidade = c.cidade;
+                datalist.appendChild(option);
+            });
         }
 
-        .app-header h1 { 
-            font-size: 20px; 
-            margin: 0;
-            color: #111; 
+        window.verificarAutocompletarCliente = function() {
+            const nomeDigitado = document.getElementById('cliente').value.trim().toUpperCase();
+            const datalist = document.getElementById('lista-clientes');
+            const options = datalist.options;
+
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].value.trim().toUpperCase() === nomeDigitado) {
+                    document.getElementById('contato').value = options[i].dataset.contato || '';
+                    document.getElementById('cep').value = options[i].dataset.cep || '';
+                    document.getElementById('rua').value = options[i].dataset.rua || '';
+                    document.getElementById('numero').value = options[i].dataset.numero || '';
+                    document.getElementById('bairro').value = options[i].dataset.bairro || '';
+                    document.getElementById('cidade').value = options[i].dataset.cidade || '';
+                    break;
+                }
+            }
         }
 
-        .menu-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 6px;
-            color: #333;
-        }
-        .menu-btn:hover { background-color: #e9ecef; }
+        // BUSCA AUTOMÁTICA DE CEP
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('cep').addEventListener('blur', async (e) => {
+                const cep = e.target.value.replace(/\D/g, '');
+                if (cep.length === 8) {
+                    try {
+                        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                        const data = await response.json();
+                        if (!data.erro) {
+                            document.getElementById('rua').value = data.logradouro;
+                            document.getElementById('bairro').value = (data.bairro || '').trim().toUpperCase();
+                            document.getElementById('cidade').value = `${data.localidade} - ${data.uf}`;
+                        } else {
+                            alert('CEP não encontrado.');
+                        }
+                    } catch (error) {
+                        console.error('Erro ao buscar CEP:', error);
+                    }
+                }
+            });
 
-        .dropdown-menu {
-            display: none;
-            position: absolute;
-            top: 35px;
-            right: 0;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            border: 1px solid #ddd;
-            z-index: 3000;
-            min-width: 200px;
-            overflow: hidden;
-        }
+            document.getElementById('delivery-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const editId = document.getElementById('edit-id').value;
+                const dataSelecionada = document.getElementById('data-entrega').value;
+                const pecas = [];
+                let valorTotal = 0;
 
-        .dropdown-menu button {
-            width: 100%;
-            padding: 12px 16px;
-            text-align: left;
-            background: none;
-            border: none;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            color: #333;
-            border-bottom: 1px solid #eee;
-        }
-        .dropdown-menu button:last-child { border-bottom: none; }
-        .dropdown-menu button:hover { background-color: #f1f3f5; }
+                document.querySelectorAll('.item-peca').forEach(item => {
+                    const descricao = item.querySelector('.desc-peca').value;
+                    const valor = parseFloat(item.querySelector('.valor-peca').value) || 0;
+                    pecas.push({ descricao, valor });
+                    valorTotal += valor;
+                });
 
-        .backup-container {
-            background-color: var(--card-bg);
-            padding: 12px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-bottom: 15px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            justify-content: space-between;
-            border: 1px dashed #ccc;
-        }
-        .backup-title { font-size: 13px; font-weight: bold; margin: 0; color: #555; }
-        .backup-buttons { display: flex; gap: 8px; }
-        .btn-backup {
-            padding: 8px 12px;
-            font-size: 12px;
-            font-weight: bold;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .btn-exportar { background-color: var(--primary); color: white; }
-        .btn-importar { background-color: var(--info); color: white; }
-        
-        #map {
-            width: 100%;
-            height: 220px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            z-index: 1;
-        }
+                const bairroFormatado = document.getElementById('bairro').value.trim().toUpperCase();
 
-        .controls-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
+                if (editId) {
+                    const itemOriginal = deliveries.find(d => d.id === editId);
+                    const entregaAtualizada = {
+                        dataCriacao: dataSelecionada,
+                        cliente: document.getElementById('cliente').value,
+                        contato: document.getElementById('contato').value || '',
+                        cep: document.getElementById('cep').value,
+                        rua: document.getElementById('rua').value,
+                        numero: document.getElementById('numero').value,
+                        bairro: bairroFormatado,
+                        cidade: document.getElementById('cidade').value,
+                        motorista: document.getElementById('motorista').value,
+                        pecas: pecas,
+                        valor: valorTotal,
+                        status: itemOriginal ? itemOriginal.status : 'Pendente',
+                        pagamentos: itemOriginal ? itemOriginal.pagamentos : { pix: 0, credito: 0, debito: 0, dinheiro: 0 },
+                        foto: itemOriginal ? itemOriginal.foto : null,
+                        assinatura: itemOriginal ? itemOriginal.assinatura : null
+                    };
+                    salvarNoFirebase(entregaAtualizada, editId);
+                    cancelarEdicao();
+                } else {
+                    const novaEntrega = {
+                        dataCriacao: dataSelecionada,
+                        cliente: document.getElementById('cliente').value,
+                        contato: document.getElementById('contato').value || '',
+                        cep: document.getElementById('cep').value,
+                        rua: document.getElementById('rua').value,
+                        numero: document.getElementById('numero').value,
+                        bairro: bairroFormatado,
+                        cidade: document.getElementById('cidade').value,
+                        motorista: document.getElementById('motorista').value,
+                        pecas: pecas,
+                        valor: valorTotal,
+                        status: 'Pendente',
+                        pagamentos: { pix: 0, credito: 0, debito: 0, dinheiro: 0 },
+                        foto: null,
+                        assinatura: null
+                    };
+                    salvarNoFirebase(novaEntrega);
+                    document.getElementById('delivery-form').reset();
+                    resetarFormularioHTML();
+                }
+            });
+        });
 
-        .select-custom, .input-date-custom {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            background-color: white;
-            font-weight: bold;
-            box-sizing: border-box;
-            height: 48px;
-        }
-
-        .btn-clear-date {
-            grid-column: span 2;
-            padding: 6px 12px;
-            font-size: 12px;
-            background: #e9ecef;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
+        window.adicionarCampoPeca = function(descricao = '', valor = '') {
+            const container = document.getElementById('lista-pecas-form');
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 item-peca';
+            div.innerHTML = `
+                <input type="text" placeholder="Nome/Descrição da Peça" value="${descricao}" class="w-full border p-2 rounded text-sm desc-peca" required>
+                <input type="number" step="0.01" placeholder="Valor (R$)" value="${valor !== '' ? valor : ''}" class="w-32 border p-2 rounded text-sm valor-peca" required oninput="calcularTotalForm()">
+                <button type="button" onclick="this.parentElement.remove(); calcularTotalForm();" class="bg-red-100 text-red-600 px-2 rounded hover:bg-red-200"><i class="fas fa-trash"></i></button>
+            `;
+            container.appendChild(div);
+            calcularTotalForm();
         }
 
-        .tabs-bairros-container {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 8px;
-            margin-bottom: 15px;
-            scrollbar-width: none;
-        }
-        .tabs-bairros-container::-webkit-scrollbar { display: none; }
-        .tab-bairro-btn {
-            background-color: #e9ecef;
-            color: #495057;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s ease;
-        }
-        .tab-bairro-btn.active {
-            background-color: var(--primary);
-            color: white;
-            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.25);
+        window.calcularTotalForm = function() {
+            const inputs = document.querySelectorAll('.valor-peca');
+            let total = 0;
+            inputs.forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+            document.getElementById('valor-total-exibicao').innerText = `R$ ${total.toFixed(2)}`;
         }
 
-        .form-container {
-            background-color: var(--card-bg);
-            padding: 16px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-bottom: 15px;
-            position: relative;
-        }
-        
-        .form-container h3 { margin-top: 0; margin-bottom: 12px; font-size: 16px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .form-group { margin-bottom: 12px; position: relative; }
-        .form-group.full-width { grid-column: span 2; }
-        
-        .form-group label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 12px; color: #666; }
-        .form-group input, .form-group textarea, .form-group select {
-            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; background-color: #fdfdfd;
+        window.resetarFormularioHTML = function() {
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('data-entrega').value = hoje;
+            document.getElementById('lista-pecas-form').innerHTML = `
+                <div class="flex gap-2 item-peca">
+                    <input type="text" placeholder="Nome/Descrição da Peça" class="w-full border p-2 rounded text-sm desc-peca" required>
+                    <input type="number" step="0.01" placeholder="Valor (R$)" class="w-32 border p-2 rounded text-sm valor-peca" required oninput="calcularTotalForm()">
+                </div>
+            `;
+            document.getElementById('valor-total-exibicao').innerText = 'R$ 0,00';
         }
 
-        .pecas-container, .pagamentos-container {
-            background: #f1f3f5; padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0;
-        }
-        .pagamentos-container { background: #faf5ff; border-color: #e9d5ff; }
-        
-        .pecas-container label, .pagamentos-container label {
-            font-weight: bold; font-size: 12px; color: #495057; display: block; margin-bottom: 6px;
-        }
-        .pagamentos-container label { color: #6b21a8; }
+        window.editarEntrega = function(id) {
+            const item = deliveries.find(d => d.id === id);
+            if(!item) return;
 
-        .peca-row, .pagamento-row {
-            display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 6px; align-items: center;
-        }
+            document.getElementById('edit-id').value = item.id;
+            document.getElementById('data-entrega').value = item.dataCriacao || new Date().toISOString().split('T')[0];
+            document.getElementById('cliente').value = item.cliente;
+            document.getElementById('contato').value = item.contato || '';
+            document.getElementById('cep').value = item.cep;
+            document.getElementById('rua').value = item.rua;
+            document.getElementById('numero').value = item.numero;
+            document.getElementById('bairro').value = item.bairro;
+            document.getElementById('cidade').value = item.cidade;
+            document.getElementById('motorista').value = item.motorista;
 
-        .btn-mini { padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-add-peca { background-color: #6c757d; color: white; margin-bottom: 5px; }
-        .btn-add-pagto { background-color: var(--pagamento); color: white; margin-bottom: 5px; }
-        .btn-remove-item { background-color: var(--danger); color: white; padding: 10px; }
+            const container = document.getElementById('lista-pecas-form');
+            container.innerHTML = '';
+            if(item.pecas && item.pecas.length > 0) {
+                item.pecas.forEach(p => {
+                    adicionarCampoPeca(p.descricao, p.valor);
+                });
+            } else {
+                adicionarCampoPeca('Peça única', item.valor);
+            }
 
-        .autocomplete-suggestions {
-            position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 8px 8px; max-height: 160px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .suggestion-item { padding: 10px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eee; }
-        
-        .btn {
-            padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; width: 100%; display: block; text-align: center; box-sizing: border-box;
-        }
-        .btn-submit { background-color: var(--primary); color: white; }
-        .btn-optimize { background-color: var(--optimize); color: white; margin-bottom: 12px; }
-        .btn-danger-all { background-color: #fff; color: var(--danger); border: 1px solid var(--danger); margin: 15px 0; padding: 8px; font-size: 13px;}
-        
-        .delivery-card {
-            background: var(--card-bg); border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 5px solid var(--primary); position: relative;
-        }
-        .delivery-card.concluida { border-left-color: #bbb; opacity: 0.85; background-color: #f9f9f9; }
-        .delivery-card.concluida .card-title { text-decoration: line-through; color: #777; }
-        .delivery-card.devolvida { border-left-color: var(--devolucao); background-color: #fdf6f0; }
+            document.getElementById('form-title').innerHTML = `<i class="fas fa-edit mr-2 text-blue-500"></i>Editar Entrega (#${item.id.slice(-4)})`;
+            document.getElementById('btn-submit').innerText = 'Atualizar Dados da Entrega';
+            document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
 
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-        .card-title { font-size: 16px; font-weight: bold; margin: 0; color: #222; }
-
-        .badges-wrapper { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
-        .card-date, .card-sequence-badge, .card-neighborhood-badge {
-            font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #fff;
-        }
-        .card-date { background-color: #6c757d; }
-        .card-sequence-badge { background-color: #8e44ad; font-size: 11px; padding: 3px 8px; }
-        .card-neighborhood-badge { background-color: #fd7e14; }
-
-        .card-body { font-size: 13px; line-height: 1.5; color: #444; }
-        .card-body p { margin: 4px 0; }
-        
-        .card-pecas-list, .card-pagamentos-list {
-            background: #f8f9fa; border-radius: 6px; padding: 6px 10px; margin: 6px 0; border-left: 3px solid #dee2e6;
-        }
-        .card-pagamentos-list { background: #faf5ff; border-left-color: #d8b4fe; }
-        .card-pecas-list div, .card-pagamentos-list div { font-size: 12px; display: flex; justify-content: space-between; }
-
-        .obs-alert { background: #fff3cd; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-top: 5px !important; display: inline-block;}
-        .motivo-alert { background: #f8d7da; color: #721c24; padding: 6px 10px; border-radius: 6px; font-size: 12px; margin-top: 6px; display: block; font-weight: bold; border-left: 3px solid var(--danger); }
-
-        .driver-status-section { background-color: #f1f3f5; border-radius: 8px; padding: 10px; margin-top: 10px; border: 1px dashed #ced4da; }
-        .driver-status-section label { display: block; font-size: 11px; font-weight: bold; color: #495057; margin-bottom: 4px; text-transform: uppercase; }
-        .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-        .config-group input, .config-group select { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #ced4da; font-size: 12px; box-sizing: border-box; background-color: white; }
-
-        .comprovantes-preview-container {
-            display: flex; gap: 8px; margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 8px; flex-wrap: wrap; align-items: center;
-        }
-        .comprovante-thumb {
-            width: 70px; height: 70px; border-radius: 6px; object-fit: cover; border: 1px solid #ccc; cursor: pointer; background-color: #eee;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        .card-actions { display: flex; gap: 6px; margin-top: 12px; border-top: 1px solid #eee; padding-top: 10px; flex-wrap: wrap; }
-        .btn-action { flex: 1; min-width: 65px; padding: 8px; font-size: 12px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; text-decoration: none; text-align: center; }
-        .btn-gps { background-color: var(--info); color: white; }
-        .btn-whatsapp { background-color: var(--whatsapp); color: white; }
-        .btn-edit { background-color: var(--warning); color: #212529; }
-        .btn-check { background-color: var(--success); color: white; }
-        .btn-devolucao { background-color: var(--devolucao); color: white; }
-        .btn-camera { background-color: #6f42c1; color: white; }
-        .btn-assinatura { background-color: #fd7e14; color: white; }
-        .btn-pdf-view { background-color: #e74c3c; color: white; text-decoration: none; }
-        .btn-delete { background-color: #f8d7da; color: var(--danger); flex: 0 0 35px; min-width: auto; }
-
-        .total-badge { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #555; }
-
-        .painel-pagamentos-resumo { background-color: var(--card-bg); border-radius: 12px; padding: 16px; margin-top: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e9d5ff; }
-        .painel-pagamentos-resumo h3 { margin-top: 0; margin-bottom: 12px; font-size: 16px; color: #6b21a8; border-bottom: 2px solid #e9d5ff; padding-bottom: 6px; }
-        .resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .resumo-item { background-color: #faf5ff; padding: 10px; border-radius: 8px; border-left: 4px solid var(--pagamento); }
-        .resumo-item-label { font-size: 11px; font-weight: bold; color: #6b21a8; text-transform: uppercase; }
-        .resumo-item-valor { font-size: 16px; font-weight: 800; color: #222; margin-top: 2px; }
-
-        #view-km, #view-suporte, #view-clientes { display: none; }
-
-        .km-dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .km-card { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid var(--km-color); }
-        .km-card-full { grid-column: span 2; }
-        .km-card-title { font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; }
-        .km-card-value { font-size: 22px; font-weight: 800; color: #111; }
-        .km-card-sub { font-size: 11px; color: #888; margin-top: 2px; }
-
-        .km-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-size: 13px; }
-        .km-table th, .km-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
-        .km-table th { background-color: #e6fcf5; color: #0ca678; font-weight: bold; }
-
-        /* Modais */
-        .modal-edit { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; }
-        .modal-content { background-color: white; width: 100%; max-width: 500px; border-radius: 12px; padding: 20px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .close-modal { font-size: 24px; background: none; border: none; cursor: pointer; color: #999; }
-
-        #signature-pad {
-            border: 2px dashed #007BFF; border-radius: 8px; width: 100%; height: 200px; background: #fafafa; touch-action: none; cursor: crosshair;
+        window.cancelarEdicao = function() {
+            document.getElementById('delivery-form').reset();
+            document.getElementById('edit-id').value = '';
+            document.getElementById('form-title').innerHTML = `<i class="fas fa-user-plus mr-2 text-blue-500"></i>Cadastrar Nova Entrega`;
+            document.getElementById('btn-submit').innerText = 'Salvar Entrega no Firebase';
+            document.getElementById('btn-cancelar-edicao').classList.add('hidden');
+            resetarFormularioHTML();
         }
 
-        .motivos-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
-        .btn-motivo-opcao { background-color: #f8f9fa; border: 2px solid #e9ecef; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: bold; color: #333; text-align: left; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 10px; }
-        .btn-motivo-opcao:hover { border-color: var(--devolucao); background-color: #fffaf5; color: var(--devolucao); }
+        // --- MUDAR MOTORISTA ---
+        window.abrirModalMotorista = function(id) {
+            entregaSelecionadaId = id;
+            const item = deliveries.find(d => d.id === id);
+            if(item) {
+                document.getElementById('novo-motorista-select').value = item.motorista;
+                document.getElementById('modal-motorista').classList.remove('hidden');
+            }
+        }
 
-        .suporte-card, .cliente-card { background: white; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border-left: 5px solid var(--primary); }
-        .suporte-card.resolvido { border-left-color: var(--success); opacity: 0.8; }
-        .suporte-header, .cliente-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 15px; margin-bottom: 6px; }
-        .badge-sup { font-size: 10px; padding: 2px 6px; border-radius: 4px; color: white; background: #6c757d; }
-        .badge-tipo { background-color: var(--devolucao); }
+        window.fecharModalMotorista = function() {
+            document.getElementById('modal-motorista').classList.add('hidden');
+            entregaSelecionadaId = null;
+        }
 
-        .cliente-historico-item { background: #f8f9fa; border-radius: 6px; padding: 8px; margin-top: 6px; font-size: 12px; border-left: 3px solid #ced4da; }
-    </style>
+        window.salvarNovoMotorista = function() {
+            const item = deliveries.find(d => d.id === entregaSelecionadaId);
+            if(item) {
+                item.motorista = document.getElementById('novo-motorista-select').value;
+                salvarNoFirebase(item, item.id);
+                fecharModalMotorista();
+            }
+        }
+
+        // --- CHIPS DE BAIRROS ---
+        function atualizarChipsBairros() {
+            const container = document.getElementById('bairros-scroll-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const bairrosUnicos = [...new Set(deliveries.map(d => (d.bairro || '').trim().toUpperCase()))].filter(b => b !== '').sort();
+
+            const btnTodos = document.createElement('button');
+            btnTodos.type = 'button';
+            btnTodos.className = `whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm ${bairroSelecionadoFiltro === '' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`;
+            btnTodos.innerText = 'Todos os Bairros';
+            btnTodos.onclick = () => {
+                bairroSelecionadoFiltro = '';
+                atualizarChipsBairros();
+                renderDeliveries();
+            };
+            container.appendChild(btnTodos);
+
+            bairrosUnicos.forEach(bairro => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm uppercase ${bairroSelecionadoFiltro === bairro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`;
+                btn.innerText = bairro;
+                btn.onclick = () => {
+                    bairroSelecionadoFiltro = bairro;
+                    atualizarChipsBairros();
+                    renderDeliveries();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        window.limparFiltros = function() {
+            document.getElementById('filtro-data').value = '';
+            document.getElementById('filtro-motorista').value = '';
+            bairroSelecionadoFiltro = '';
+            atualizarChipsBairros();
+            renderDeliveries();
+        }
+
+        window.enviarWhatsApp = function(id) {
+            const item = deliveries.find(d => d.id === id);
+            if(item && item.contato) {
+                let fone = item.contato.replace(/\D/g, '');
+                if (!fone.startsWith('55')) fone = '55' + fone;
+
+                let pecasTexto = item.pecas.map(p => `- ${p.descricao} (R$ ${p.valor.toFixed(2)})`).join('%0A');
+                let msg = `Olá *${item.cliente}*! Aqui é o motorista *${item.motorista}*. Estou saindo para realizar a sua entrega.%0A%0A*Endereço:* ${item.rua}, nº ${item.numero} - ${item.bairro}, ${item.cidade}%0A*Itens:*%0A${pecasTexto}%0A*Valor Total:* R$ ${item.valor.toFixed(2)}%0A%0APor favor, confirme se está no local!`;
+
+                window.open(`https://wa.me/${fone}?text=${msg}`, '_blank');
+            } else {
+                alert('Número de contato inválido ou ausente.');
+            }
+        }
+
+        window.abrirGps = function(id) {
+            const item = deliveries.find(d => d.id === id);
+            if(!item) return;
+
+            const queryLimpa = `${item.rua}, ${item.numero}, ${item.bairro}, ${item.cidade}, ${item.cep}`;
+            const urlGoogleMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryLimpa)}`;
+            window.open(urlGoogleMaps, '_blank');
+        }
+
+        window.concluirEntrega = function(id) {
+            const item = deliveries.find(d => d.id === id);
+            if(item) {
+                item.status = 'Concluída';
+                salvarNoFirebase(item, id);
+            }
+        }
+
+        window.excluirEntrega = function(id) {
+            excluirEntregaFirebase(id);
+        }
+
+        // --- PAGAMENTOS ---
+        window.abrirModalPagamento = function(id) {
+            entregaSelecionadaId = id;
+            const item = deliveries.find(d => d.id === id);
+            if(item) {
+                document.getElementById('info-pag-total').innerText = `Valor Total: R$ ${item.valor.toFixed(2)}`;
+                document.getElementById('pag-pix').value = item.pagamentos?.pix || '';
+                document.getElementById('pag-credito').value = item.pagamentos?.credito || '';
+                document.getElementById('pag-debito').value = item.pagamentos?.debito || '';
+                document.getElementById('pag-dinheiro').value = item.pagamentos?.dinheiro || '';
+                document.getElementById('modal-pagamento').classList.remove('hidden');
+            }
+        }
+
+        window.fecharModalPagamento = function() {
+            document.getElementById('modal-pagamento').classList.add('hidden');
+            entregaSelecionadaId = null;
+        }
+
+        window.salvarMultiplosPagamentos = function() {
+            const item = deliveries.find(d => d.id === entregaSelecionadaId);
+            if(item) {
+                item.pagamentos = {
+                    pix: parseFloat(document.getElementById('pag-pix').value) || 0,
+                    credito: parseFloat(document.getElementById('pag-credito').value) || 0,
+                    debito: parseFloat(document.getElementById('pag-debito').value) || 0,
+                    dinheiro: parseFloat(document.getElementById('pag-dinheiro').value) || 0
+                };
+                salvarNoFirebase(item, item.id);
+                fecharModalPagamento();
+            }
+        }
+
+        // --- ASSINATURA ---
+        let canvas, ctx, desenhando = false;
+
+        function initCanvas() {
+            canvas = document.getElementById('canvas-assinatura');
+            if(!canvas) return;
+            ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000';
+
+            canvas.onmousedown = (e) => { desenhando = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
+            canvas.onmousemove = (e) => { if(desenhando) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
+            canvas.onmouseup = () => { desenhando = false; };
+            canvas.onmouseleave = () => { desenhando = false; };
+
+            canvas.ontouchstart = (e) => {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                desenhando = true;
+                ctx.beginPath();
+                ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            };
+            canvas.ontouchmove = (e) => {
+                e.preventDefault();
+                if(!desenhando) return;
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+                ctx.stroke();
+            };
+            canvas.ontouchend = () => { desenhando = false; };
+        }
+
+        window.abrirModalAssinatura = function(id) {
+            entregaSelecionadaId = id;
+            document.getElementById('modal-assinatura').classList.remove('hidden');
+            setTimeout(initCanvas, 50);
+        }
+
+        window.fecharModalAssinatura = function() {
+            document.getElementById('modal-assinatura').classList.add('hidden');
+            entregaSelecionadaId = null;
+        }
+
+        window.limparCanvas = function() {
+            if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        window.salvarAssinatura = function() {
+            const item = deliveries.find(d => d.id === entregaSelecionadaId);
+            if(item) {
+                item.assinatura = canvas.toDataURL();
+                salvarNoFirebase(item, item.id);
+                fecharModalAssinatura();
+            }
+        }
+
+        // --- FOTO ---
+        window.adicionarFoto = function(id, event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvasImg = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        const maxSize = 800;
+
+                        if (width > height && width > maxSize) {
+                            height *= maxSize / width;
+                            width = maxSize;
+                        } else if (height > maxSize) {
+                            width *= maxSize / height;
+                            height = maxSize;
+                        }
+
+                        canvasImg.width = width;
+                        canvasImg.height = height;
+                        const ctxImg = canvasImg.getContext('2d');
+                        ctxImg.drawImage(img, 0, 0, width, height);
+
+                        const dataUrl = canvasImg.toDataURL('image/jpeg', 0.7);
+                        const item = deliveries.find(d => d.id === id);
+                        if(item) {
+                            item.foto = dataUrl;
+                            salvarNoFirebase(item, item.id);
+                        }
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        window.ampliarImagem = function(url) {
+            document.getElementById('imagem-ampliada').src = url;
+            document.getElementById('modal-imagem').classList.remove('hidden');
+        }
+
+        window.fecharModalImagem = function() {
+            document.getElementById('modal-imagem').classList.add('hidden');
+        }
+
+        function renderDeliveries() {
+            const list = document.getElementById('deliveries-list');
+            if(!list) return;
+            list.innerHTML = '';
+
+            const dataFiltro = document.getElementById('filtro-data').value;
+            const motoristaFiltro = document.getElementById('filtro-motorista').value;
+            
+            let entregasFiltradas = deliveries;
+
+            if (dataFiltro) {
+                entregasFiltradas = entregasFiltradas.filter(d => d.dataCriacao === dataFiltro);
+            }
+
+            if (motoristaFiltro) {
+                entregasFiltradas = entregasFiltradas.filter(d => d.motorista === motoristaFiltro);
+            }
+
+            if (bairroSelecionadoFiltro) {
+                entregasFiltradas = entregasFiltradas.filter(d => (d.bairro || '').trim().toUpperCase() === bairroSelecionadoFiltro);
+            }
+
+            if (entregasFiltradas.length === 0) {
+                list.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">Nenhuma entrega encontrada.</p>`;
+                return;
+            }
+
+            entregasFiltradas.forEach(d => {
+                const card = document.createElement('div');
+                card.className = `bg-white border rounded-xl p-4 shadow-sm relative transition ${d.status === 'Concluída' ? 'border-green-400 bg-green-50/30' : 'border-gray-200'}`;
+                
+                let pecasHtml = '<ul class="list-disc list-inside text-xs text-gray-600 my-2 bg-gray-50 p-2 rounded">';
+                if(d.pecas && d.pecas.length > 0) {
+                    d.pecas.forEach(p => {
+                        pecasHtml += `<li>${p.descricao} - <span class="font-semibold text-gray-800">R$ ${Number(p.valor || 0).toFixed(2)}</span></li>`;
+                    });
+                } else {
+                    pecasHtml += `<li>Peça única - R$ ${Number(d.valor || 0).toFixed(2)}</li>`;
+                }
+                pecasHtml += '</ul>';
+
+                let pagStr = [];
+                if(d.pagamentos?.pix > 0) pagStr.push(`Pix: R$ ${d.pagamentos.pix.toFixed(2)}`);
+                if(d.pagamentos?.credito > 0) pagStr.push(`Créd.: R$ ${d.pagamentos.credito.toFixed(2)}`);
+                if(d.pagamentos?.debito > 0) pagStr.push(`Déb.: R$ ${d.pagamentos.debito.toFixed(2)}`);
+                if(d.pagamentos?.dinheiro > 0) pagStr.push(`Din.: R$ ${d.pagamentos.dinheiro.toFixed(2)}`);
+                let pagTexto = pagStr.length > 0 ? `<span class="text-blue-600 font-normal ml-1">(${pagStr.join(' | ')})</span>` : '';
+
+                let dataExibicao = d.dataCriacao ? d.dataCriacao.split('-').reverse().join('/') : 'Data não reg.';
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <span class="text-xs font-bold px-2 py-0.5 rounded ${d.status === 'Concluída' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${d.status}</span>
+                            <span class="text-xs text-gray-400 ml-1 font-semibold"><i class="fas fa-calendar-alt mr-1"></i>${dataExibicao}</span>
+                            <h3 class="font-bold text-gray-800 text-sm mt-1"><i class="fas fa-user text-blue-500 mr-1"></i> ${d.cliente} <span class="text-gray-500 font-normal ml-1">(${d.contato || 'Sem tel'})</span></h3>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-1 rounded"><i class="fas fa-motorcycle mr-1"></i>${d.motorista}</span>
+                            <button onclick="abrirModalMotorista('${d.id}')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-1.5 py-1 rounded" title="Mudar Motorista"><i class="fas fa-exchange-alt"></i></button>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-600 mb-1"><i class="fas fa-map-marker-alt text-red-500 mr-1"></i> ${d.rua}, Nº ${d.numero} - <strong class="text-gray-800 uppercase">${d.bairro || 'N/D'}</strong>, ${d.cidade} (CEP: ${d.cep})</p>
+                    
+                    ${pecasHtml}
+
+                    <p class="text-xs font-bold text-gray-700 mb-3">Valor Total: R$ ${Number(d.valor || 0).toFixed(2)} ${pagTexto}</p>
+
+                    <div class="mb-3 flex flex-wrap items-center gap-3">
+                        ${d.foto ? `<div class="text-center"><span class="block text-[10px] text-gray-400">Foto</span><img src="${d.foto}" class="w-14 h-14 object-cover rounded border shadow-sm cursor-pointer hover:opacity-80 transition" onclick="ampliarImagem('${d.foto}')" title="Clique para ampliar"></div>` : ''}
+                        ${d.assinatura ? `<div class="text-center"><span class="block text-[10px] text-gray-400">Assinatura</span><img src="${d.assinatura}" class="w-24 h-14 object-contain bg-white rounded border shadow-sm cursor-pointer hover:opacity-80 transition" onclick="ampliarImagem('${d.assinatura}')" title="Clique para ampliar"></div>` : ''}
+                        
+                        <div class="flex flex-col gap-1.5 ml-auto">
+                            <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded border flex items-center gap-1 justify-center">
+                                <i class="fas fa-camera"></i> ${d.foto ? 'Trocar Foto' : 'Adicionar Foto'}
+                                <input type="file" accept="image/*" class="hidden" onchange="adicionarFoto('${d.id}', event)">
+                            </label>
+                            <button onclick="abrirModalAssinatura('${d.id}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded border border-indigo-200 flex items-center gap-1 justify-center">
+                                <i class="fas fa-signature"></i> ${d.assinatura ? 'Refazer Assinatura' : 'Assinar Cliente'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100 text-xs">
+                        <button onclick="concluirEntrega('${d.id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded shadow"><i class="fas fa-check mr-1"></i>Concluir</button>
+                        
+                        <button onclick="abrirGps('${d.id}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1">
+                            <i class="fas fa-location-arrow"></i> GPS
+                        </button>
+
+                        <button onclick="enviarWhatsApp('${d.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </button>
+
+                        <button onclick="abrirModalPagamento('${d.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded border border-blue-200 flex items-center gap-1">
+                            <i class="fas fa-wallet"></i> Lançar Pagto
+                        </button>
+
+                        <button onclick="editarEntrega('${d.id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1" title="Editar Dados"><i class="fas fa-edit"></i> Editar</button>
+
+                        <button onclick="excluirEntrega('${d.id}')" class="bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded shadow ml-auto"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function updateDashboard() {
+            let totPix = 0, totCredito = 0, totDebito = 0, totDinheiro = 0;
+
+            deliveries.forEach(d => {
+                if(d.pagamentos) {
+                    totPix += Number(d.pagamentos.pix || 0);
+                    totCredito += Number(d.pagamentos.credito || 0);
+                    totDebito += Number(d.pagamentos.debito || 0);
+                    totDinheiro += Number(d.pagamentos.dinheiro || 0);
+                }
+            });
+
+            const elPix = document.getElementById('total-pix');
+            const elCred = document.getElementById('total-credito');
+            const elDeb = document.getElementById('total-debito');
+            const elDin = document.getElementById('total-dinheiro');
+
+            if(elPix) elPix.innerText = `R$ ${totPix.toFixed(2)}`;
+            if(elCred) elCred.innerText = `R$ ${totCredito.toFixed(2)}`;
+            if(elDeb) elDeb.innerText = `R$ ${totDebito.toFixed(2)}`;
+            if(elDin) elDin.innerText = `R$ ${totDinheiro.toFixed(2)}`;
+        }
+    </script>
 </head>
-<body>
+<body class="bg-gray-100 font-sans pb-36">
 
-    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;" onchange="salvarFotoCapturada(event)">
-
-    <div id="offline-alert" class="offline-badge">⚡ Você está em modo offline. O aplicativo continua funcionando normalmente!</div>
-
-    <div class="app-header">
-        <h1 id="app-title">📦 Logística de Entregas</h1>
-        <button class="menu-btn" onclick="toggleMenu()">⋮</button>
-        <div id="dropdown-menu" class="dropdown-menu">
-            <button onclick="trocarAba('entregas')">📦 Entregas & Rotas</button>
-            <button onclick="trocarAba('km')">📊 Relatório de KM</button>
-            <button onclick="trocarAba('clientes')">👥 Clientes Cadastrados</button>
-            <button onclick="trocarAba('suporte')">🎧 Suporte & Ocorrências</button>
-            <button id="pwa-install-btn" style="display:none; color: var(--primary);" onclick="instalarPwaApp()">📲 Instalar Aplicativo</button>
-        </div>
-    </div>
-
-    <div id="view-entregas">
-        <div class="backup-container">
-            <span class="backup-title">💾 Backup de Segurança:</span>
-            <div class="backup-buttons">
-                <button class="btn-backup btn-exportar" onclick="exportarBackup()">📥 Exportar</button>
-                <button class="btn-backup btn-importar" onclick="document.getElementById('import-file').click()">📤 Importar</button>
-                <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importarBackup(event)">
+    <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold"><i class="fas fa-motorcycle mr-2"></i>App de Entregas - Firebase</h1>
+            <div class="flex items-center gap-2">
+                <button onclick="realizarBackupManual()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs px-2.5 py-1.5 rounded font-semibold flex items-center gap-1 shadow transition" title="Baixar Backup Manual">
+                    <i class="fas fa-download"></i> Backup
+                </button>
+                <span id="sync-status" class="text-xs bg-yellow-500 text-black px-2 py-1 rounded font-semibold">Conectando...</span>
             </div>
         </div>
+    </header>
 
-        <div class="controls-container">
-            <input type="date" id="filter-date" class="input-date-custom" onchange="alterarFiltrosPrincipais()">
-            <select id="filter-driver" class="select-custom" onchange="alterarFiltrosPrincipais()">
-                <option value="Todos">Todos os Motoristas</option>
-                <option value="Carlos">Carlos</option>
-                <option value="Luiz Marcelo">Luiz Marcelo</option>
-                <option value="Barbosa">Barbosa</option>
-            </select>
-            <button class="btn-clear-date" onclick="limparFiltroData()">📅 Mostrar Entregas de Todas as Datas</button>
-        </div>
+    <main class="container mx-auto p-4 max-w-2xl">
 
-        <div class="tabs-bairros-container" id="bairros-tabs-container"></div>
+        <section class="bg-white p-5 rounded-xl shadow-md mb-6">
+            <h2 id="form-title" class="text-lg font-bold text-gray-700 mb-4 border-b pb-2"><i class="fas fa-user-plus mr-2 text-blue-500"></i>Cadastrar Nova Entrega</h2>
+            <form id="delivery-form" class="space-y-3">
+                <input type="hidden" id="edit-id">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600">Data da Entrega</label>
+                    <input type="date" id="data-entrega" required class="w-full border p-2 rounded text-sm bg-blue-50/50 font-semibold text-blue-900 focus:ring-2 focus:ring-blue-400">
+                </div>
 
-        <div id="map"></div>
-
-        <button type="button" class="btn btn-optimize" onclick="otimizarRotaAtual()">🚀 Otimizar Sequência da Rota</button>
-
-        <div class="form-container">
-            <h3>➕ Nova Entrega</h3>
-            <form id="route-form" onsubmit="adicionarRota(event)" autocomplete="off">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Cliente:</label>
-                        <input type="text" id="f-cliente" oninput="buscarCliente(this.value)" required>
-                        <div id="suggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">CEP</label>
+                        <input type="text" id="cep" placeholder="00000-000" maxlength="9" required class="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-blue-400">
                     </div>
-                    <div class="form-group">
-                        <label>Contato do Comprador:</label>
-                        <input type="text" id="f-contato" placeholder="(00) 90000-0000">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Número</label>
+                        <input type="text" id="numero" placeholder="Ex: 123" required class="w-full border p-2 rounded text-sm">
                     </div>
                 </div>
 
-                <div class="pecas-container">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label>Peças e Valores:</label>
-                        <button type="button" class="btn-mini btn-add-peca" onclick="adicionarLinhaPeca('f-pecas-list')">➕ Add Peça</button>
-                    </div>
-                    <div id="f-pecas-list">
-                        <div class="peca-row">
-                            <input type="text" placeholder="Nome da Peça" required class="p-nome">
-                            <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
-                            <div style="width:34px"></div>
-                        </div>
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600">Nome da Rua</label>
+                    <input type="text" id="rua" placeholder="Preenchimento automático" required class="w-full border p-2 rounded text-sm bg-gray-50">
                 </div>
 
-                <div class="pagamentos-container">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label>Pagamentos:</label>
-                        <button type="button" class="btn-mini btn-add-pagto" onclick="adicionarLinhaPagamento('f-pagamentos-list')">➕ Add Pagamento</button>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Bairro (Automático / Maiúsculo)</label>
+                        <input type="text" id="bairro" placeholder="Preenchimento automático" required class="w-full border p-2 rounded text-sm bg-gray-50 uppercase font-semibold">
                     </div>
-                    <div id="f-pagamentos-list">
-                        <div class="pagamento-row">
-                            <select class="p-forma" required>
-                                <option value="PIX">PIX</option>
-                                <option value="Dinheiro">Dinheiro</option>
-                                <option value="Cartão de Crédito">Cartão de Crédito</option>
-                                <option value="Cartão de Débito">Cartão de Débito</option>
-                                <option value="Faturado">Faturado</option>
-                                <option value="CONFIRMAR PGTO">CONFIRMAR PGTO</option>
-                            </select>
-                            <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
-                            <div style="width:34px"></div>
-                        </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Cidade / Estado</label>
+                        <input type="text" id="cidade" placeholder="Preenchimento automático" required class="w-full border p-2 rounded text-sm bg-gray-50">
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Bairro:</label>
-                        <input type="text" id="f-bairro" required>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Cliente (Digite p/ puxar dados)</label>
+                        <input type="text" id="cliente" list="lista-clientes" placeholder="Nome do Cliente" required oninput="verificarAutocompletarCliente()" class="w-full border p-2 rounded text-sm">
+                        <datalist id="lista-clientes"></datalist>
                     </div>
-                    <div class="form-group">
-                        <label>CEP:</label>
-                        <input type="text" id="f-cep" onblur="buscarEnderecoPorCEP(this.value, 'f-ruas', 'f-cidade', 'f-bairro')">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Contato (Opcional)</label>
+                        <input type="text" id="contato" placeholder="(00) 00000-0000" class="w-full border p-2 rounded text-sm">
                     </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Cidade:</label>
-                        <input type="text" id="f-cidade" value="Castro - PR" required>
-                    </div>
-                    <div class="form-group">
-                        <label>🔢 Posição/Sequência:</label>
-                        <input type="number" id="f-sequencia" placeholder="Auto" min="1">
-                    </div>
-                </div>
-
-                <div class="form-group full-width">
-                    <label>Rua e Número:</label>
-                    <input type="text" id="f-ruas" required>
-                </div>
-
-                <div class="form-group full-width">
-                    <label>Observações:</label>
-                    <textarea id="f-obs" rows="2" placeholder="Informações de entrega, referências, etc..."></textarea>
-                </div>
-
-                <div class="form-group full-width">
-                    <label>📑 Anexar PDF do Papel/Conta da Loja (Opcional):</label>
-                    <input type="file" id="f-pdf" accept="application/pdf">
-                </div>
-
-                <button type="submit" class="btn btn-submit">Cadastrar Entrega</button>
-            </form>
-        </div>
-
-        <div class="total-badge" id="total-entregas-badge">0 entregas no total</div>
-        
-        <div id="route-list"></div>
-
-        <button type="button" class="btn btn-danger-all" onclick="apagarTodasRotas()">🗑️ Apagar Todas as Entregas do Sistema</button>
-
-        <div class="painel-pagamentos-resumo">
-            <h3>💰 Resumo Financeiro do Filtro Atual</h3>
-            <div class="resumo-grid">
-                <div class="resumo-item">
-                    <div class="resumo-item-label">PIX</div>
-                    <div class="resumo-item-valor" id="resumo-pix">R$ 0,00</div>
-                </div>
-                <div class="resumo-item">
-                    <div class="resumo-item-label">Dinheiro</div>
-                    <div class="resumo-item-valor" id="resumo-dinheiro">R$ 0,00</div>
-                </div>
-                <div class="resumo-item">
-                    <div class="resumo-item-label">Crédito</div>
-                    <div class="resumo-item-valor" id="resumo-credito">R$ 0,00</div>
-                </div>
-                <div class="resumo-item">
-                    <div class="resumo-item-label">Débito</div>
-                    <div class="resumo-item-valor" id="resumo-debito">R$ 0,00</div>
-                </div>
-                <div class="resumo-item" style="grid-column: span 2; background-color: #f3e8ff; border-left-color: #7e22ce;">
-                    <div class="resumo-item-label" style="color: #7e22ce;">Total Geral Calculado</div>
-                    <div class="resumo-item-valor" id="resumo-total-geral" style="font-size: 20px; color: #581c87;">R$ 0,00</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="view-km">
-        <div class="form-container">
-            <h3>🚙 Registro Diário de Quilometragem</h3>
-            <form id="km-form" onsubmit="registrarKm(event)">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Data:</label>
-                        <input type="date" id="km-data" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Motorista:</label>
-                        <select id="km-motorista" required>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Motorista</label>
+                        <select id="motorista" required class="w-full border p-2 rounded text-sm bg-white">
+                            <option value="">Selecione...</option>
                             <option value="Carlos">Carlos</option>
-                            <option value="Luiz Marcelo">Luiz Marcelo</option>
+                            <option value="Marcelo">Marcelo</option>
                             <option value="Barbosa">Barbosa</option>
                         </select>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>KM Inicial (Saída):</label>
-                        <input type="number" id="km-inicial" required placeholder="Ex: 102500">
+
+                <div class="border-t pt-3 mt-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-gray-700 uppercase"><i class="fas fa-boxes mr-1 text-blue-500"></i> Peças / Itens da Entrega</label>
+                        <button type="button" onclick="adicionarCampoPeca()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2 py-1 rounded font-semibold"><i class="fas fa-plus mr-1"></i>Adicionar Peça</button>
                     </div>
-                    <div class="form-group">
-                        <label>KM Final (Chegada):</label>
-                        <input type="number" id="km-final" required placeholder="Ex: 102680">
+                    <div id="lista-pecas-form" class="space-y-2">
+                        <div class="flex gap-2 item-peca">
+                            <input type="text" placeholder="Nome/Descrição da Peça" class="w-full border p-2 rounded text-sm desc-peca" required>
+                            <input type="number" step="0.01" placeholder="Valor (R$)" class="w-32 border p-2 rounded text-sm valor-peca" required oninput="calcularTotalForm()">
+                        </div>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-submit" style="background-color: var(--km-color);">Salvar Registro de KM</button>
+
+                <div class="bg-blue-50 p-2.5 rounded border border-blue-200 flex justify-between items-center">
+                    <span class="text-xs font-bold text-blue-800">Valor Total da Entrega:</span>
+                    <span id="valor-total-exibicao" class="text-sm font-bold text-blue-900">R$ 0,00</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" id="btn-submit" class="w-full bg-blue-600 text-white font-bold p-2.5 rounded hover:bg-blue-700 transition">Salvar Entrega no Firebase</button>
+                    <button type="button" id="btn-cancelar-edicao" onclick="cancelarEdicao()" class="hidden bg-gray-400 text-white font-bold p-2.5 rounded hover:bg-gray-500 transition">Cancelar</button>
+                </div>
             </form>
-        </div>
+        </section>
 
-        <div class="km-dashboard">
-            <div class="km-card km-card-full">
-                <div class="km-card-title">Total KM Rodados (Mês Atual)</div>
-                <div class="km-card-value" id="km-total-mes">0 km</div>
-                <div class="km-card-sub" id="km-sub-mes">Calculado com base nas medições informadas</div>
-            </div>
-        </div>
-
-        <h3>📋 Histórico de Registros</h3>
-        <table class="km-table">
-            <thead>
-                <tr>
-                    <th>Data</th>
-                    <th>Motorista</th>
-                    <th>Início</th>
-                    <th>Fim</th>
-                    <th>Rodado</th>
-                </tr>
-            </thead>
-            <tbody id="km-table-body">
-                <tr><td colspan="5" style="text-align: center; color: #888;">Nenhum registro encontrado.</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div id="view-clientes">
-        <div class="form-container">
-            <h3>🔍 Pesquisar Cliente / Histórico</h3>
-            <div class="form-group">
-                <input type="text" id="busca-cliente-input" placeholder="Digite o nome do cliente..." oninput="filtrarListaClientes(this.value)">
-            </div>
-        </div>
-        <div id="clientes-lista-container"></div>
-    </div>
-
-    <div id="view-suporte">
-        <div class="form-container">
-            <h3>🎧 Central de Suporte & Ocorrências</h3>
-            <p style="font-size: 12px; color: #666; margin-bottom: 12px;">Se houver divergências, trocas ou solicitações da equipe, registre abaixo:</p>
-            <form id="suporte-form" onsubmit="registrarOcorrenciaSuporte(event)">
-                <div class="form-group">
-                    <label>Título / Assunto:</label>
-                    <input type="text" id="sup-titulo" placeholder="Ex: Peça Incompatível / Cliente Ausente" required>
+        <section class="bg-white p-4 rounded-xl shadow-md mb-6">
+            <h2 class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-filter mr-1 text-blue-500"></i>Filtros de Busca</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Data</label>
+                    <input type="date" id="filtro-data" class="border p-2 rounded text-sm w-full" oninput="renderDeliveries()">
                 </div>
-                <div class="form-group">
-                    <label>Detalhes da Ocorrência:</label>
-                    <textarea id="sup-obs" rows="3" required placeholder="Descreva o problema em detalhes..."></textarea>
-                </div>
-                <button type="submit" class="btn btn-submit" style="background-color: var(--devolucao);">Enviar Registro de Suporte</button>
-            </form>
-        </div>
-
-        <h3>📌 Ocorrências Registradas</h3>
-        <div id="suporte-lista-container"></div>
-    </div>
-
-    <div id="modal-editar" class="modal-edit">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="margin: 0;">✏️ Editar Entrega</h3>
-                <button class="close-modal" onclick="fecharModalEditar()">×</button>
-            </div>
-            <form id="edit-route-form" onsubmit="salvarEdicaoRota(event)">
-                <input type="hidden" id="e-id">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Cliente:</label>
-                        <input type="text" id="e-cliente" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Contato:</label>
-                        <input type="text" id="e-contato">
-                    </div>
-                </div>
-
-                <div class="pecas-container">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label>Peças e Valores:</label>
-                        <button type="button" class="btn-mini btn-add-peca" onclick="adicionarLinhaPeca('e-pecas-list')">➕ Add Peça</button>
-                    </div>
-                    <div id="e-pecas-list"></div>
-                </div>
-
-                <div class="pagamentos-container">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label>Pagamentos:</label>
-                        <button type="button" class="btn-mini btn-add-pagto" onclick="adicionarLinhaPagamento('e-pagamentos-list')">➕ Add Pagamento</button>
-                    </div>
-                    <div id="e-pagamentos-list"></div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Bairro:</label>
-                        <input type="text" id="e-bairro" required>
-                    </div>
-                    <div class="form-group">
-                        <label>CEP:</label>
-                        <input type="text" id="e-cep">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Cidade:</label>
-                        <input type="text" id="e-cidade" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Posição / Sequência:</label>
-                        <input type="number" id="e-sequencia" min="1">
-                    </div>
-                </div>
-
-                <div class="form-group full-width">
-                    <label>Rua e Número:</label>
-                    <input type="text" id="e-ruas" required>
-                </div>
-
-                <div class="form-group full-width">
-                    <label>Observações:</label>
-                    <textarea id="e-obs" rows="2"></textarea>
-                </div>
-
-                <div class="form-group full-width">
-                    <label>📑 Atualizar/Anexar PDF da Conta/Papel:</label>
-                    <input type="file" id="e-pdf" accept="application/pdf">
-                </div>
-
-                <button type="submit" class="btn btn-submit" style="background-color: var(--success); width: 100%;">Salvar Alterações</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="modal-assinatura" class="modal-edit">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="margin: 0;">✍️ Assinatura do Comprador</h3>
-                <button class="close-modal" onclick="fecharModalAssinatura()">×</button>
-            </div>
-            <p style="font-size: 12px; color: #666; margin-top: 0;">Solicite a assinatura do comprador abaixo para confirmar a entrega ou autorizar a devolução:</p>
-            <canvas id="signature-pad"></canvas>
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-                <button type="button" class="btn" style="background-color: #6c757d; color: white;" onclick="limparAssinatura()">🧹 Limpar</button>
-                <button type="button" class="btn btn-submit" onclick="salvarAssinatura()">💾 Confirmar Assinatura</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-motivo" class="modal-edit">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 style="margin: 0;">🔄 Motivo da Devolução</h3>
-                <button class="close-modal" onclick="fecharModalMotivo()">×</button>
-            </div>
-            <p style="font-size: 12px; color: #666;">Selecione ou digite o motivo da devolução para registrar no sistema:</p>
-            
-            <div class="motivos-grid">
-                <button class="btn-motivo-opcao" onclick="confirmarDevolucao('Peça Errada / Incompatível')">❌ Peça Errada / Incompatível</button>
-                <button class="btn-motivo-opcao" onclick="confirmarDevolucao('Defeito de Fabricação')">🛠️ Defeito de Fabricação</button>
-                <button class="btn-motivo-opcao" onclick="confirmarDevolucao('Cliente Desistiu da Compra')">👤 Cliente Desistiu da Compra</button>
-                <button class="btn-motivo-opcao" onclick="confirmarDevolucao('Valor / Condição Divergente')">💲 Valor Divergente</button>
-            </div>
-
-            <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 12px;">
-                <label style="font-size: 12px; font-weight: bold; color: #495057;">Ou digite outro motivo específico:</label>
-                <input type="text" id="motivo-customizado-input" placeholder="Ex: Faltou parafuso de fixação" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; margin-top: 6px; box-sizing: border-box;">
-                <button type="button" class="btn btn-submit" style="background-color: var(--devolucao); margin-top: 8px;" onclick="confirmarDevolucaoCustomizada()">Confirmar Devolução</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, push, remove, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        const firebaseConfig = {
-            databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com" || "https://minha-rota-3467e-default-rtdb.firebaseio.com/" || "https://dlrotas-default-rtdb.firebaseio.com/"
-        };
-
-        let app, db;
-        try {
-            app = initializeApp(firebaseConfig);
-            db = getDatabase(app);
-        } catch(e) {
-            console.error("Erro ao inicializar Firebase:", e);
-        }
-
-        let rotas = [];
-        let registrosKm = [];
-        let ocorrenciasSuporte = [];
-        let map;
-        let markers = [];
-        let activeBairroFilter = 'TODOS';
-        let idRotaAtualAcao = null;
-        let isDevolucaoFlow = false;
-
-        const dHoje = new Date();
-        const ano = dHoje.getFullYear();
-        const mes = String(dHoje.getMonth() + 1).padStart(2, '0');
-        const dia = String(dHoje.getDate()).padStart(2, '0');
-        const hojeISO = `${ano}-${mes}-${dia}`;
-
-        document.getElementById('km-data').value = hojeISO;
-
-        function initMap() {
-            if (!map && document.getElementById('map')) {
-                try {
-                    map = L.map('map').setView([-24.7911, -50.0119], 13);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap'
-                    }).addTo(map);
-                } catch(e) { console.error("Erro mapa:", e); }
-            }
-        }
-        initMap();
-
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            const pwaBtn = document.getElementById('pwa-install-btn');
-            if(pwaBtn) pwaBtn.style.display = 'block';
-        });
-
-        window.instalarPwaApp = function() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
-            }
-        };
-
-        let canvas, ctx;
-        let isDrawing = false;
-
-        function initSignaturePad() {
-            canvas = document.getElementById('signature-pad');
-            if(!canvas) return;
-            ctx = canvas.getContext('2d');
-
-            function resizeCanvas() {
-                const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                canvas.width = canvas.offsetWidth * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
-                ctx.scale(ratio, ratio);
-                ctx.strokeStyle = "#000";
-                ctx.lineWidth = 2.5;
-                ctx.lineCap = "round";
-            }
-            resizeCanvas();
-
-            function getPos(e) {
-                const rect = canvas.getBoundingClientRect();
-                if(e.touches && e.touches[0]) {
-                    return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-                }
-                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            }
-
-            function startDraw(e) {
-                isDrawing = true;
-                const pos = getPos(e);
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y);
-            }
-
-            function moveDraw(e) {
-                if(!isDrawing) return;
-                e.preventDefault();
-                const pos = getPos(e);
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-            }
-
-            function stopDraw() { isDrawing = false; }
-
-            canvas.addEventListener('mousedown', startDraw);
-            canvas.addEventListener('mousemove', moveDraw);
-            canvas.addEventListener('mouseup', stopDraw);
-
-            canvas.addEventListener('touchstart', startDraw, {passive: false});
-            canvas.addEventListener('touchmove', moveDraw, {passive: false});
-            canvas.addEventListener('touchend', stopDraw);
-        }
-
-        window.limparAssinatura = function() {
-            if(ctx && canvas) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
-        };
-
-        window.abrirModalAssinatura = function(id, isDevolucao = false) {
-            idRotaAtualAcao = id;
-            isDevolucaoFlow = isDevolucao;
-            document.getElementById('modal-assinatura').style.display = 'flex';
-            setTimeout(initSignaturePad, 100);
-        };
-
-        window.fecharModalAssinatura = function() {
-            document.getElementById('modal-assinatura').style.display = 'none';
-            isDevolucaoFlow = false;
-        };
-
-        window.salvarAssinatura = function() {
-            if(!idRotaAtualAcao || !canvas) return;
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            update(ref(db, 'entregas/' + idRotaAtualAcao), {
-                assinatura: dataUrl,
-                assinaturaDigital: dataUrl
-            }).catch(() => {
-                update(ref(db, 'rotas/' + idRotaAtualAcao), {
-                    assinatura: dataUrl,
-                    assinaturaDigital: dataUrl
-                });
-            }).then(() => {
-                const isDev = isDevolucaoFlow;
-                fecharModalAssinatura();
-                if (isDev) {
-                    window.abrirModalMotivoDevolucao(idRotaAtualAcao);
-                } else {
-                    alert("Assinatura do comprador salva com sucesso!");
-                }
-            }).catch(err => {
-                alert("Erro ao salvar assinatura: " + err.message);
-            });
-        };
-
-        window.iniciarDevolucao = function(id) {
-            const rota = rotas.find(r => r.id === id);
-            if (!rota) return;
-
-            if (rota.devolvida) {
-                if (confirm("Deseja cancelar o registro de devolução desta entrega?")) {
-                    const updateObj = { devolvida: false, motivoDevolucao: "" };
-                    update(ref(db, 'entregas/' + id), updateObj).catch(() => update(ref(db, 'rotas/' + id), updateObj));
-                }
-                return;
-            }
-
-            const ass = rota.assinatura || rota.assinaturaDigital;
-            if (!ass) {
-                alert("⚠️ ATENÇÃO: Para aceitar a devolução, é OBRIGATÓRIO ter a assinatura do comprador!\n\nPor favor, recolha a assinatura do comprador primeiro.");
-                window.abrirModalAssinatura(id, true);
-                return;
-            }
-
-            window.abrirModalMotivoDevolucao(id);
-        };
-
-        window.abrirModalMotivoDevolucao = function(id) {
-            idRotaAtualAcao = id;
-            document.getElementById('modal-motivo').style.display = 'flex';
-        };
-
-        window.fecharModalMotivo = function() {
-            document.getElementById('modal-motivo').style.display = 'none';
-        };
-
-        window.confirmarDevolucao = function(motivo) {
-            if(!idRotaAtualAcao) return;
-            const dataHoje = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            
-            const payload = {
-                devolvida: true,
-                concluida: false,
-                motivoDevolucao: motivo,
-                horaDevolucao: dataHoje
-            };
-
-            update(ref(db, 'entregas/' + idRotaAtualAcao), payload)
-            .catch(() => update(ref(db, 'rotas/' + idRotaAtualAcao), payload))
-            .then(() => {
-                fecharModalMotivo();
-                alert("Devolução registrada com sucesso!");
-            });
-        };
-
-        window.confirmarDevolucaoCustomizada = function() {
-            const input = document.getElementById('motivo-customizado-input');
-            const val = input ? input.value.trim() : '';
-            if(!val) {
-                alert("Por favor, digite o motivo da devolução.");
-                return;
-            }
-            window.confirmarDevolucao(val);
-            if(input) input.value = '';
-        };
-
-        window.toggleMenu = function() {
-            const menu = document.getElementById('dropdown-menu');
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-        };
-
-        window.trocarAba = function(aba) {
-            document.getElementById('view-entregas').style.display = 'none';
-            document.getElementById('view-km').style.display = 'none';
-            document.getElementById('view-clientes').style.display = 'none';
-            document.getElementById('view-suporte').style.display = 'none';
-            
-            document.getElementById('dropdown-menu').style.display = 'none';
-
-            if(aba === 'entregas') {
-                document.getElementById('view-entregas').style.display = 'block';
-                document.getElementById('app-title').innerText = '📦 Logística de Entregas';
-                if(map) map.invalidateSize();
-                renderizarRotas();
-            } else if(aba === 'km') {
-                document.getElementById('view-km').style.display = 'block';
-                document.getElementById('app-title').innerText = '📊 Relatório de KM';
-                renderizarTabelaKm();
-            } else if(aba === 'clientes') {
-                document.getElementById('view-clientes').style.display = 'block';
-                document.getElementById('app-title').innerText = '👥 Clientes Cadastrados';
-                renderizarClientes();
-            } else if(aba === 'suporte') {
-                document.getElementById('view-suporte').style.display = 'block';
-                document.getElementById('app-title').innerText = '🎧 Central de Suporte';
-                renderizarSuporte();
-            }
-        };
-
-        window.addEventListener('online', updateOnlineStatus);
-        window.addEventListener('offline', updateOnlineStatus);
-        function updateOnlineStatus() {
-            const alertElem = document.getElementById('offline-alert');
-            if(alertElem) alertElem.style.display = navigator.onLine ? 'none' : 'block';
-        }
-        updateOnlineStatus();
-
-        window.adicionarLinhaPeca = function(containerId, nome = '', valor = '') {
-            const container = document.getElementById(containerId);
-            if(!container) return;
-            const div = document.createElement('div');
-            div.className = 'peca-row';
-            div.innerHTML = `
-                <input type="text" placeholder="Nome da Peça" value="${nome}" required class="p-nome">
-                <input type="text" placeholder="Valor (Ex: 50,00)" value="${valor}" required class="p-valor">
-                <button type="button" class="btn-mini btn-remove-item" onclick="this.parentElement.remove()">✕</button>
-            `;
-            container.appendChild(div);
-        };
-
-        window.adicionarLinhaPagamento = function(containerId, forma = 'PIX', valor = '') {
-            const container = document.getElementById(containerId);
-            if(!container) return;
-            const div = document.createElement('div');
-            div.className = 'pagamento-row';
-            div.innerHTML = `
-                <select class="p-forma" required>
-                    <option value="PIX" ${forma === 'PIX' ? 'selected' : ''}>PIX</option>
-                    <option value="Dinheiro" ${forma === 'Dinheiro' ? 'selected' : ''}>Dinheiro</option>
-                    <option value="Cartão de Crédito" ${forma === 'Cartão de Crédito' ? 'selected' : ''}>Cartão de Crédito</option>
-                    <option value="Cartão de Débito" ${forma === 'Cartão de Débito' ? 'selected' : ''}>Cartão de Débito</option>
-                    <option value="Faturado" ${forma === 'Faturado' ? 'selected' : ''}>Faturado</option>
-                    <option value="CONFIRMAR PGTO" ${forma === 'CONFIRMAR PGTO' ? 'selected' : ''}>CONFIRMAR PGTO</option>
-                </select>
-                <input type="text" placeholder="Valor (Ex: 50,00)" value="${valor}" required class="p-valor-pagto">
-                <button type="button" class="btn-mini btn-remove-item" onclick="this.parentElement.remove()">✕</button>
-            `;
-            container.appendChild(div);
-        };
-
-        function lerArquivoBase64(file) {
-            return new Promise((resolve, reject) => {
-                if (!file) return resolve(null);
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-                reader.readAsDataURL(file);
-            });
-        }
-
-        window.adicionarRota = async function(e) {
-            e.preventDefault();
-
-            const cliente = document.getElementById('f-cliente').value.trim();
-            const contato = document.getElementById('f-contato').value.trim();
-            const bairro = document.getElementById('bairro').value.trim().toUpperCase();
-            const cep = document.getElementById('f-cep').value.trim();
-            const cidade = document.getElementById('f-cidade').value.trim();
-            const rua = document.getElementById('f-ruas').value.trim();
-            const obs = document.getElementById('f-obs').value.trim();
-            const sequenciaVal = document.getElementById('f-sequencia').value;
-            const pdfInput = document.getElementById('f-pdf');
-
-            const pecasRows = document.querySelectorAll('#f-pecas-list .peca-row');
-            let pecas = [];
-            pecasRows.forEach(row => {
-                const n = row.querySelector('.p-nome').value.trim();
-                const v = row.querySelector('.p-valor').value.trim();
-                if(n) pecas.push({ nome: n, valor: v });
-            });
-
-            const pagtoRows = document.querySelectorAll('#f-pagamentos-list .pagamento-row');
-            let pagamentos = [];
-            pagtoRows.forEach(row => {
-                const f = row.querySelector('.p-forma').value;
-                const v = row.querySelector('.p-valor-pagto').value.trim();
-                if(f) pagamentos.push({ forma: f, valor: v });
-            });
-
-            const filtroDataSel = document.getElementById('filter-date').value || hojeISO;
-            const filtroMotoristaSel = document.getElementById('filter-driver').value || 'Todos';
-
-            let pdfBase64 = null;
-            if (pdfInput && pdfInput.files && pdfInput.files[0]) {
-                try {
-                    pdfBase64 = await lerArquivoBase64(pdfInput.files[0]);
-                } catch(err) {
-                    console.error("Erro ao ler arquivo PDF:", err);
-                }
-            }
-
-            const novaRota = {
-                cliente,
-                contato,
-                bairro,
-                cep,
-                cidade,
-                rua,
-                obs,
-                pecas,
-                pagamentos,
-                abaData: filtroDataSel,
-                abaMotorista: filtroMotoristaSel === 'Todos' ? 'Carlos' : filtroMotoristaSel,
-                concluida: false,
-                devolvida: false,
-                dataCriacao: new Date().toLocaleDateString('pt-BR'),
-                pdfDocumento: pdfBase64 || null
-            };
-
-            if(sequenciaVal) novaRota.sequencia = parseInt(sequenciaVal);
-
-            const idGerado = Date.now().toString();
-            set(ref(db, 'entregas/' + idGerado), novaRota).then(() => {
-                limparFormularioCriacao();
-                alert("Entrega cadastrada com sucesso!");
-            }).catch(() => {
-                push(ref(db, 'rotas'), novaRota).then(() => {
-                    limparFormularioCriacao();
-                    alert("Entrega cadastrada com sucesso!");
-                });
-            });
-        };
-
-        function limparFormularioCriacao() {
-            document.getElementById('route-form').reset();
-            document.getElementById('f-pecas-list').innerHTML = `
-                <div class="peca-row">
-                    <input type="text" placeholder="Nome da Peça" required class="p-nome">
-                    <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor">
-                    <div style="width:34px"></div>
-                </div>
-            `;
-            document.getElementById('f-pagamentos-list').innerHTML = `
-                <div class="pagamento-row">
-                    <select class="p-forma" required>
-                        <option value="PIX">PIX</option>
-                        <option value="Dinheiro">Dinheiro</option>
-                        <option value="Cartão de Crédito">Cartão de Crédito</option>
-                        <option value="Cartão de Débito">Cartão de Débito</option>
-                        <option value="Faturado">Faturado</option>
-                        <option value="CONFIRMAR PGTO">CONFIRMAR PGTO</option>
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Motorista</label>
+                    <select id="filtro-motorista" class="border p-2 rounded text-sm w-full bg-white" onchange="renderDeliveries()">
+                        <option value="">Todos os Motoristas</option>
+                        <option value="Carlos">Carlos</option>
+                        <option value="Marcelo">Marcelo</option>
+                        <option value="Barbosa">Barbosa</option>
                     </select>
-                    <input type="text" placeholder="Valor (Ex: 50,00)" required class="p-valor-pagto">
-                    <div style="width:34px"></div>
                 </div>
-            `;
-            document.getElementById('f-cidade').value = 'Castro - PR';
-        }
+            </div>
 
-        function escutarBancoDeDados() {
-            onValue(ref(db, 'entregas'), (snapshot) => {
-                const dadosEntregas = snapshot.exists() ? snapshot.val() : {};
-                onValue(ref(db, 'rotas'), (snap2) => {
-                    const dadosRotas = snap2.exists() ? snap2.val() : {};
-                    processarDadosCombined(dadosEntregas, dadosRotas);
-                });
-            });
-        }
+            <div class="mb-2">
+                <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Bairro (Clique para selecionar)</label>
+                <div id="bairros-scroll-container" class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin"></div>
+            </div>
 
-        function processarDadosCombined(dadosE, dadosR) {
-            rotas = [];
-            const combinados = { ...dadosR, ...dadosE };
-            for (let key in combinados) {
-                rotas.push({ id: key, ...combinados[key] });
-            }
-            renderizarRotas();
-        }
+            <div class="flex justify-end pt-1 border-t">
+                <button onclick="limparFiltros()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-2 rounded font-semibold w-full md:w-auto">Limpar Todos os Filtros</button>
+            </div>
+        </section>
 
-        escutarBancoDeDados();
+        <section>
+            <h2 class="text-lg font-bold text-gray-700 mb-4"><i class="fas fa-tasks mr-2 text-blue-500"></i>Entregas Pendentes e Andamento</h2>
+            <div id="deliveries-list" class="space-y-4"></div>
+        </section>
 
-        onValue(ref(db, 'registros_km'), (snapshot) => {
-            registrosKm = [];
-            if(snapshot.exists()) {
-                const data = snapshot.val();
-                for(let key in data) {
-                    registrosKm.push({ id: key, ...data[key] });
-                }
-            }
-            renderizarTabelaKm();
-        });
+    </main>
 
-        onValue(ref(db, 'suporte'), (snapshot) => {
-            ocorrenciasSuporte = [];
-            if(snapshot.exists()) {
-                const data = snapshot.val();
-                for(let key in data) {
-                    ocorrenciasSuporte.push({ id: key, ...data[key] });
-                }
-            }
-            renderizarSuporte();
-        });
-
-        window.alterarFiltrosPrincipais = function() {
-            activeBairroFilter = 'TODOS';
-            renderizarRotas();
-        };
-
-        window.limparFiltroData = function() {
-            document.getElementById('filter-date').value = "";
-            alterarFiltrosPrincipais();
-        };
-
-        window.selecionarFiltroBairro = function(bairro) {
-            activeBairroFilter = bairro;
-            renderizarRotas();
-        };
-
-        function parseValorMonetario(str) {
-            if(!str) return 0;
-            let limpo = str.toString().replace(/[^\d,-]/g, '').replace(',', '.');
-            let num = parseFloat(limpo);
-            return isNaN(num) ? 0 : num;
-        }
-
-        function normalizarDataParaISO(dataStr) {
-            if (!dataStr) return "";
-            if (dataStr.includes("T")) return dataStr.split("T")[0];
-            if (dataStr.includes("/")) {
-                const partes = dataStr.split("/");
-                if (partes.length === 3) {
-                    return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-                }
-            }
-            return dataStr;
-        }
-
-        function renderizarRotas() {
-            const container = document.getElementById('route-list') || document.getElementById('container-entregas');
-            const tabsContainer = document.getElementById('bairros-tabs-container');
-            const filtroDataInput = document.getElementById('filter-date') ? document.getElementById('filter-date').value : "";
-            const filtroMotoristaSel = document.getElementById('filter-driver') ? document.getElementById('filter-driver').value : "Todos";
-
-            if(!container) return;
-
-            if(map && markers) {
-                markers.forEach(m => map.removeLayer(m));
-                markers = [];
-            }
-
-            let bairrosSet = new Set();
-            rotas.forEach(r => {
-                if (r.bairro) bairrosSet.add(r.bairro.trim());
-            });
-
-            if(tabsContainer) {
-                let tabsHTML = `<button class="tab-bairro-btn ${activeBairroFilter === 'TODOS' ? 'active' : ''}" onclick="selecionarFiltroBairro('TODOS')">TODOS</button>`;
-                bairrosSet.forEach(b => {
-                    tabsHTML += `<button class="tab-bairro-btn ${activeBairroFilter === b ? 'active' : ''}" onclick="selecionarFiltroBairro('${b}')">${b}</button>`;
-                });
-                tabsContainer.innerHTML = tabsHTML;
-            }
-
-            let entregasFiltradas = rotas.filter(r => {
-                let dataMatch = true;
-
-                if (filtroDataInput !== "") {
-                    let dataRotaISO = normalizarDataParaISO(r.abaData || r.data || r.dataCriacao);
-                    if (dataRotaISO && dataRotaISO !== filtroDataInput && r.abaData !== "Hoje") {
-                        dataMatch = false;
-                    }
-                }
-
-                let driverMatch = (filtroMotoristaSel === "Todos" || !r.abaMotorista || r.abaMotorista === filtroMotoristaSel);
-                let bairroMatch = (activeBairroFilter === 'TODOS' || !r.bairro || r.bairro.trim() === activeBairroFilter);
-
-                return dataMatch && driverMatch && bairroMatch;
-            });
-
-            entregasFiltradas.sort((a, b) => {
-                let seqA = a.sequencia !== undefined && a.sequencia !== "" ? parseInt(a.sequencia) : 9999;
-                let seqB = b.sequencia !== undefined && b.sequencia !== "" ? parseInt(b.sequencia) : 9999;
-                return seqA - seqB;
-            });
-
-            const totalBadge = document.getElementById('total-entregas-badge') || document.getElementById('total-entregas');
-            if(totalBadge) totalBadge.innerText = `${entregasFiltradas.length} entrega(s) encontrada(s) de ${rotas.length} no total`;
-
-            let somaPix = 0, somaDinheiro = 0, somaCredito = 0, somaDebito = 0, somaTotal = 0;
-
-            container.innerHTML = "";
-
-            if(entregasFiltradas.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: #888; padding: 20px; background: white; border-radius: 12px;">Nenhuma entrega encontrada com os filtros selecionados.</div>`;
-            }
-
-            entregasFiltradas.forEach((rota, idx) => {
-                if (rota.pagamentos && rota.pagamentos.length > 0) {
-                    rota.pagamentos.forEach(p => {
-                        const val = parseValorMonetario(p.valor);
-                        somaTotal += val;
-                        if(p.forma === 'PIX') somaPix += val;
-                        else if(p.forma === 'Dinheiro') somaDinheiro += val;
-                        else if(p.forma === 'Cartão de Crédito') somaCredito += val;
-                        else if(p.forma === 'Cartão de Débito') somaDebito += val;
-                    });
-                } else if(rota.valor) {
-                    const val = parseValorMonetario(rota.valor);
-                    somaTotal += val;
-                    somaPix += val;
-                }
-
-                if (map && rota.lat && rota.lng) {
-                    const m = L.marker([rota.lat, rota.lng]).addTo(map);
-                    m.bindPopup(`<b>${rota.cliente}</b><br>${rota.rua}`);
-                    markers.push(m);
-                }
-
-                const card = document.createElement('div');
-                let cardClass = 'delivery-card';
-                if(rota.concluida) cardClass += ' concluida';
-                if(rota.devolvida) cardClass += ' devolvida';
-
-                card.className = cardClass;
-
-                const numSequencia = rota.sequencia !== undefined ? rota.sequencia : (idx + 1);
-                const motoristaAtual = rota.abaMotorista || 'Carlos';
-                const dataExibicao = rota.abaData || rota.dataCriacao || rota.data || 'Sem Data';
-
-                let pecasHTML = "";
-                if(rota.pecas && rota.pecas.length > 0) {
-                    pecasHTML = '<div class="card-pecas-list"><strong>🔧 Peças:</strong>';
-                    rota.pecas.forEach(p => {
-                        pecasHTML += `<div><span>• ${p.nome}</span> <b>R$ ${p.valor}</b></div>`;
-                    });
-                    pecasHTML += '</div>';
-                } else if(rota.peca) {
-                    pecasHTML = `<div class="card-pecas-list"><strong>🔧 Peça:</strong> <div><span>• ${rota.peca}</span> <b>R$ ${rota.valor || '0,00'}</b></div></div>`;
-                }
-
-                let pagamentosHTML = "";
-                if(rota.pagamentos && rota.pagamentos.length > 0) {
-                    pagamentosHTML = '<div class="card-pagamentos-list"><strong>💳 Pagamento:</strong>';
-                    rota.pagamentos.forEach(p => {
-                        pagamentosHTML += `<div><span>• ${p.forma}</span> <b>R$ ${p.valor}</b></div>`;
-                    });
-                    pagamentosHTML += '</div>';
-                }
-
-                let pdfHTML = "";
-if (rota.pdfDocumento) {
-    pdfHTML = `
-        <div style="margin-top: 6px;">
-            <button type="button" onclick="visualizarDocumento('${rota.id}')" class="btn-action btn-pdf-view">
-                📄 Ver Foto/PDF
-            </button>
+    <div id="modal-motorista" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl p-4 w-full max-w-xs shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-motorcycle text-blue-500 mr-1"></i>Alterar Motorista</h3>
+            <select id="novo-motorista-select" class="w-full border p-2 rounded text-sm mb-4 bg-white">
+                <option value="Carlos">Carlos</option>
+                <option value="Marcelo">Marcelo</option>
+                <option value="Barbosa">Barbosa</option>
+            </select>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="fecharModalMotorista()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">Cancelar</button>
+                <button type="button" onclick="salvarNovoMotorista()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-1.5 rounded font-semibold">Salvar</button>
+            </div>
         </div>
-    `;
-}
-
-                let comprovanteHTML = "";
-                const assDigit = rota.assinatura || rota.assinaturaDigital;
-                if(rota.fotoComprovante || assDigit) {
-                    comprovanteHTML = '<div class="comprovantes-preview-container">';
-                    if(rota.fotoComprovante) {
-                        comprovanteHTML += `<img src="${rota.fotoComprovante}" class="comprovante-thumb" onclick="window.open('${rota.fotoComprovante}')" title="Foto da Entrega">`;
-                    }
-                    if(assDigit) {
-                        comprovanteHTML += `<img src="${assDigit}" class="comprovante-thumb" onclick="window.open('${assDigit}')" title="Assinatura do Comprador" style="background: #fff; padding: 2px;">`;
-                    }
-                    comprovanteHTML += '</div>';
-                }
-
-                card.innerHTML = `
-                    <div class="card-header">
-                        <div class="card-title">${rota.cliente || 'Cliente'}</div>
-                        <div class="badges-wrapper">
-                            <span class="card-date">📅 ${dataExibicao}</span>
-                            <span class="card-sequence-badge">#${numSequencia}</span>
-                            <span class="card-neighborhood-badge">${rota.bairro || 'Geral'}</span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <p>📍 <strong>Endereço:</strong> ${rota.rua || ''} - ${rota.cidade || ''}</p>
-                        ${rota.contato ? `<p>📞 <strong>Contato:</strong> ${rota.contato}</p>` : ''}
-                        ${pecasHTML}
-                        ${pagamentosHTML}
-                        ${pdfHTML}
-                        ${rota.obs ? `<div class="obs-alert">📝 <strong>Obs:</strong> ${rota.obs}</div>` : ''}
-                        ${rota.devolvida ? `<div class="motivo-alert">⚠️ DEVOLVIDO (${rota.horaDevolucao || ''}): ${rota.motivoDevolucao || 'Sem motivo especificado'}</div>` : ''}
-                        
-                        ${comprovanteHTML}
-
-                        <div class="driver-status-section">
-                            <div class="config-row">
-                                <div class="config-group">
-                                    <label>👤 Motorista:</label>
-                                    <select onchange="atualizarDadoEntrega('${rota.id}', 'abaMotorista', this.value)">
-                                        <option value="Carlos" ${motoristaAtual === 'Carlos' ? 'selected' : ''}>Carlos</option>
-                                        <option value="Luiz Marcelo" ${motoristaAtual === 'Luiz Marcelo' ? 'selected' : ''}>Luiz Marcelo</option>
-                                        <option value="Barbosa" ${motoristaAtual === 'Barbosa' ? 'selected' : ''}>Barbosa</option>
-                                    </select>
-                                </div>
-                                <div class="config-group">
-                                    <label>🔢 Alterar Posição:</label>
-                                    <input type="number" value="${numSequencia}" placeholder="Ex: 1" onchange="atualizarDadoEntrega('${rota.id}', 'sequencia', parseInt(this.value))" min="1">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn-action btn-gps" onclick="abrirGps('${rota.rua || ''}', '${rota.cidade || ''}')">🧭 GPS</button>
-                        ${rota.contato ? `<button class="btn-action btn-whatsapp" onclick="abrirWhatsApp('${rota.contato}')">💬 Zap</button>` : ''}
-                        <button class="btn-action btn-edit" onclick="abrirModalEditar('${rota.id}')">✏️ Editar</button>
-                        <button class="btn-action btn-check" onclick="marcarConcluida('${rota.id}')">
-                            ${rota.concluida ? '↩️ Refazer' : '✅ Concluir'}
-                        </button>
-                        <button class="btn-action btn-devolucao" onclick="iniciarDevolucao('${rota.id}')">🔄 Devolução</button>
-                        <button class="btn-action btn-camera" onclick="capturarFotoComprovante('${rota.id}')">📸 Foto</button>
-                        <button class="btn-action btn-assinatura" onclick="abrirModalAssinatura('${rota.id}', false)">✍️ Assinar</button>
-                        <button class="btn-action btn-delete" onclick="deletarEntrega('${rota.id}')">🗑️</button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-
-            atualizarPainelResumo(somaPix, somaDinheiro, somaCredito, somaDebito, somaTotal);
-        }
-
-        window.renderizarCards = renderizarRotas;
-
-        function atualizarPainelResumo(pix, dinheiro, credito, debito, total) {
-            if(document.getElementById('resumo-pix')) document.getElementById('resumo-pix').innerText = "R$ " + pix.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            if(document.getElementById('resumo-dinheiro')) document.getElementById('resumo-dinheiro').innerText = "R$ " + dinheiro.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            if(document.getElementById('resumo-credito')) document.getElementById('resumo-credito').innerText = "R$ " + credito.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            if(document.getElementById('resumo-debito')) document.getElementById('resumo-debito').innerText = "R$ " + debito.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            if(document.getElementById('resumo-total-geral')) document.getElementById('resumo-total-geral').innerText = "R$ " + total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        }
-
-        window.atualizarDadoEntrega = function(id, campo, valor) {
-            const updateObj = { [campo]: valor };
-            update(ref(db, 'entregas/' + id), updateObj).catch(() => update(ref(db, 'rotas/' + id), updateObj));
-        };
-
-        window.marcarConcluida = function(id) {
-            const rota = rotas.find(r => r.id === id);
-            if(!rota) return;
-            const novoStatus = !rota.concluida;
-            const updateObj = { concluida: novoStatus, devolvida: false };
-            update(ref(db, 'entregas/' + id), updateObj).catch(() => update(ref(db, 'rotas/' + id), updateObj));
-        };
-
-        window.deletarEntrega = function(id) {
-            if(confirm("Deseja realmente apagar esta entrega do sistema?")) {
-                remove(ref(db, 'entregas/' + id)).catch(() => remove(ref(db, 'rotas/' + id)));
-            }
-        };
-
-        window.apagarTodasRotas = function() {
-            if(confirm("⚠️ ATENÇÃO: Deseja REALMENTE excluir TODAS as entregas cadastradas no Firebase?")) {
-                remove(ref(db, 'entregas'));
-                remove(ref(db, 'rotas'));
-            }
-        };
-
-        let idRotaFotoCaptura = null;
-        window.capturarFotoComprovante = function(id) {
-            idRotaFotoCaptura = id;
-            document.getElementById('camera-input').click();
-        };
-
-        window.salvarFotoCapturada = function(event) {
-            const file = event.target.files[0];
-            if (!file || !idRotaFotoCaptura) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const base64Image = e.target.result;
-                const updateObj = { fotoComprovante: base64Image };
-                update(ref(db, 'entregas/' + idRotaFotoCaptura), updateObj)
-                .catch(() => update(ref(db, 'rotas/' + idRotaFotoCaptura), updateObj))
-                .then(() => {
-                    alert("Foto do comprovante anexada com sucesso!");
-                    idRotaFotoCaptura = null;
-                });
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.abrirGps = function(rua, cidade) {
-            const dest = encodeURIComponent(`${rua}, ${cidade}`);
-            window.open(`https://maps.google.com/?q=${dest}`, '_blank');
-        };
-
-        window.abrirWhatsApp = function(contato) {
-            let apenasNumeros = contato.replace(/\D/g, '');
-            if(!apenasNumeros.startsWith('55') && apenasNumeros.length <= 11) {
-                apenasNumeros = '55' + apenasNumeros;
-            }
-            window.open(`https://wa.me/${apenasNumeros}`, '_blank');
-        };
-
-        window.abrirModalEditar = function(id) {
-            const rota = rotas.find(r => r.id === id);
-            if (!rota) return;
-
-            document.getElementById('e-id').value = id;
-            document.getElementById('e-cliente').value = rota.cliente || "";
-            document.getElementById('e-cep').value = rota.cep || "";
-            document.getElementById('e-ruas').value = rota.rua || "";
-            document.getElementById('e-cidade').value = rota.cidade || "";
-            document.getElementById('e-contato').value = rota.contato || "";
-            document.getElementById('e-bairro').value = rota.bairro || "";
-            document.getElementById('e-sequencia').value = rota.sequencia !== undefined ? rota.sequencia : "";
-            document.getElementById('e-obs').value = rota.obs || "";
-
-            const containerPecas = document.getElementById('e-pecas-list');
-            containerPecas.innerHTML = "";
-            if(rota.pecas && rota.pecas.length > 0) {
-                rota.pecas.forEach(p => window.adicionarLinhaPeca('e-pecas-list', p.nome, p.valor));
-            } else if (rota.peca) {
-                window.adicionarLinhaPeca('e-pecas-list', rota.peca, rota.valor);
-            } else {
-                window.adicionarLinhaPeca('e-pecas-list');
-            }
-
-            const containerPagamentos = document.getElementById('e-pagamentos-list');
-            containerPagamentos.innerHTML = "";
-            if(rota.pagamentos && rota.pagamentos.length > 0) {
-                rota.pagamentos.forEach(p => window.adicionarLinhaPagamento('e-pagamentos-list', p.forma, p.valor));
-            } else {
-                window.adicionarLinhaPagamento('e-pagamentos-list');
-            }
-
-            document.getElementById('modal-editar').style.display = 'flex';
-        };
-
-        window.fecharModalEditar = function() {
-            document.getElementById('modal-editar').style.display = 'none';
-        };
-
-        window.salvarEdicaoRota = async function(e) {
-            e.preventDefault();
-            const id = document.getElementById('e-id').value;
-            if(!id) return;
-
-            const cliente = document.getElementById('e-cliente').value.trim();
-            const contato = document.getElementById('e-contato').value.trim();
-            const bairro = document.getElementById('e-bairro').value.trim();
-            const cep = document.getElementById('e-cep').value.trim();
-            const cidade = document.getElementById('e-cidade').value.trim();
-            const rua = document.getElementById('e-ruas').value.trim();
-            const obs = document.getElementById('e-obs').value.trim();
-            const sequenciaVal = document.getElementById('e-sequencia').value;
-            const pdfInput = document.getElementById('e-pdf');
-
-            const pecasRows = document.querySelectorAll('#e-pecas-list .peca-row');
-            let pecas = [];
-            pecasRows.forEach(row => {
-                const n = row.querySelector('.p-nome').value.trim();
-                const v = row.querySelector('.p-valor').value.trim();
-                if(n) pecas.push({ nome: n, valor: v });
-            });
-
-            const pagtoRows = document.querySelectorAll('#e-pagamentos-list .pagamento-row');
-            let pagamentos = [];
-            pagtoRows.forEach(row => {
-                const f = row.querySelector('.p-forma').value;
-                const v = row.querySelector('.p-valor-pagto').value.trim();
-                if(f) pagamentos.push({ forma: f, valor: v });
-            });
-
-            const dadosAtualizados = {
-                cliente, contato, bairro, cep, cidade, rua, obs, pecas, pagamentos
-            };
-
-            if (pdfInput && pdfInput.files && pdfInput.files[0]) {
-                try {
-                    const pdfBase64 = await lerArquivoBase64(pdfInput.files[0]);
-                    dadosAtualizados.pdfDocumento = pdfBase64;
-                } catch(err) {
-                    console.error(err);
-                }
-            }
-
-            if(sequenciaVal !== "") {
-                dadosAtualizados.sequencia = parseInt(sequenciaVal);
-            }
-
-            update(ref(db, 'entregas/' + id), dadosAtualizados)
-            .catch(() => update(ref(db, 'rotas/' + id), dadosAtualizados))
-            .then(() => {
-                fecharModalEditar();
-                alert("Entrega atualizada com sucesso!");
-            });
-        };
-
-        window.otimizarRotaAtual = function() {
-            let entregasFiltradas = rotas.filter(r => !r.concluida);
-
-            if(entregasFiltradas.length < 2) {
-                alert("É necessário ter pelo menos 2 entregas pendentes para otimizar a sequência.");
-                return;
-            }
-
-            entregasFiltradas.sort((a, b) => {
-                let bA = (a.bairro || '').toLowerCase();
-                let bB = (b.bairro || '').toLowerCase();
-                if(bA < bB) return -1;
-                if(bA > bB) return 1;
-
-                let rA = (a.rua || '').toLowerCase();
-                let rB = (b.rua || '').toLowerCase();
-                return rA.localeCompare(rB);
-            });
-
-            let updates = {};
-            entregasFiltradas.forEach((rota, idx) => {
-                updates[`entregas/${rota.id}/sequencia`] = idx + 1;
-                updates[`rotas/${rota.id}/sequencia`] = idx + 1;
-            });
-
-            update(ref(db), updates).then(() => {
-                alert("🚀 Rota otimizada por proximidade de Bairro e Rua com sucesso!");
-            });
-        };
-
-        window.buscarEnderecoPorCEP = function(cep, idRua, idCidade, idBairro) {
-            const cepLimpo = cep.replace(/\D/g, '');
-            if(cepLimpo.length === 8) {
-                fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if(!data.erro) {
-                            if(data.logradouro) document.getElementById(idRua).value = data.logradouro;
-                            if(data.bairro) document.getElementById(idBairro).value = data.bairro;
-                            if(data.localidade) document.getElementById(idCidade).value = `${data.localidade} - ${data.uf}`;
-                        }
-                    }).catch(err => console.error("Erro no CEP:", err));
-            }
-        };
-
-        window.buscarCliente = function(texto) {
-            const sugBox = document.getElementById('suggestions');
-            if(!texto || texto.length < 2) {
-                if(sugBox) sugBox.style.display = 'none';
-                return;
-            }
-
-            const textoLower = texto.toLowerCase();
-            let clientesEncontrados = new Map();
-
-            rotas.forEach(r => {
-                if(r.cliente && r.cliente.toLowerCase().includes(textoLower)) {
-                    if(!clientesEncontrados.has(r.cliente)) {
-                        clientesEncontrados.set(r.cliente, r);
-                    }
-                }
-            });
-
-            if(clientesEncontrados.size === 0) {
-                if(sugBox) sugBox.style.display = 'none';
-                return;
-            }
-
-            sugBox.innerHTML = '';
-            clientesEncontrados.forEach((rota, nomeCliente) => {
-                const item = document.createElement('div');
-                item.className = 'suggestion-item';
-                item.innerText = nomeCliente;
-                item.onclick = function() {
-                    document.getElementById('f-cliente').value = rota.cliente;
-                    if(rota.contato) document.getElementById('f-contato').value = rota.contato;
-                    if(rota.bairro) document.getElementById('f-bairro').value = rota.bairro;
-                    if(rota.rua) document.getElementById('f-ruas').value = rota.rua;
-                    if(rota.cidade) document.getElementById('f-cidade').value = rota.cidade;
-                    if(rota.cep) document.getElementById('f-cep').value = rota.cep;
-                    sugBox.style.display = 'none';
-                };
-                sugBox.appendChild(item);
-            });
-            sugBox.style.display = 'block';
-        };
-
-        window.registrarKm = function(e) {
-            e.preventDefault();
-            const data = document.getElementById('km-data').value;
-            const motorista = document.getElementById('km-motorista').value;
-            const kmInicial = parseFloat(document.getElementById('km-inicial').value);
-            const kmFinal = parseFloat(document.getElementById('km-final').value);
-
-            if(kmFinal <= kmInicial) {
-                alert("O KM Final deve ser maior do que o KM Inicial.");
-                return;
-            }
-
-            const novoRegistro = {
-                data, motorista, kmInicial, kmFinal, totalRodado: (kmFinal - kmInicial)
-            };
-
-            push(ref(db, 'registros_km'), novoRegistro).then(() => {
-                document.getElementById('km-form').reset();
-                document.getElementById('km-data').value = hojeISO;
-                alert("Registro de KM salvo com sucesso!");
-            });
-        };
-
-        function renderizarTabelaKm() {
-            const tbody = document.getElementById('km-table-body');
-            if(!tbody) return;
-            tbody.innerHTML = "";
-
-            let totalMes = 0;
-            const mesAtualISO = hojeISO.substring(0, 7);
-
-            registrosKm.sort((a, b) => new Date(b.data) - new Date(a.data));
-
-            if(registrosKm.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #888;">Nenhum registro encontrado.</td></tr>`;
-            }
-
-            registrosKm.forEach(reg => {
-                if(reg.data && reg.data.startsWith(mesAtualISO)) {
-                    totalMes += (reg.totalRodado || 0);
-                }
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${reg.data ? reg.data.split('-').reverse().join('/') : ''}</td>
-                    <td><b>${reg.motorista}</b></td>
-                    <td>${reg.kmInicial}</td>
-                    <td>${reg.kmFinal}</td>
-                    <td><strong style="color: var(--km-color);">${reg.totalRodado} km</strong></td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            if(document.getElementById('km-total-mes')) {
-                document.getElementById('km-total-mes').innerText = `${totalMes} km`;
-            }
-        }
-
-        function renderizarClientes() {
-            const container = document.getElementById('clientes-lista-container') || document.getElementById('container-clientes');
-            if(!container) return;
-            container.innerHTML = "";
-
-            let clientesMap = new Map();
-            rotas.forEach(r => {
-                if(!r.cliente) return;
-                const key = r.cliente.toLowerCase().trim();
-                if(!clientesMap.has(key)) {
-                    clientesMap.set(key, {
-                        nome: r.cliente,
-                        contato: r.contato || '',
-                        cidade: r.cidade || '',
-                        entregas: []
-                    });
-                }
-                clientesMap.get(key).entregas.push(r);
-            });
-
-            if(clientesMap.size === 0) {
-                container.innerHTML = `<div style="text-align: center; color: #888; padding: 20px;">Nenhum cliente cadastrado no histórico.</div>`;
-                return;
-            }
-
-            clientesMap.forEach((clienteObj) => {
-                const card = document.createElement('div');
-                card.className = 'cliente-card';
-                
-                let historicoHTML = "";
-                clienteObj.entregas.forEach(ent => {
-                    historicoHTML += `
-                        <div class="cliente-historico-item">
-                            <div>📅 <strong>Data:</strong> ${ent.dataCriacao || ent.abaData || 'N/I'} | <strong>Status:</strong> ${ent.concluida ? '✅ Concluir' : (ent.devolvida ? '🔄 Devolvido' : '⏳ Em Aberto')}</div>
-                            <div>📍 ${ent.rua || ''} - ${ent.bairro || ''}</div>
-                        </div>
-                    `;
-                });
-
-                card.innerHTML = `
-                    <div class="cliente-header">
-                        <span>👤 ${clienteObj.nome}</span>
-                        <span class="badge-sup">${clienteObj.entregas.length} pedido(s)</span>
-                    </div>
-                    ${clienteObj.contato ? `<div style="font-size: 13px; color: #555;">📞 Contato: ${clienteObj.contato}</div>` : ''}
-                    <div style="margin-top: 8px;">
-                        <strong>Histórico de Pedidos:</strong>
-                        ${historicoHTML}
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        window.filtrarListaClientes = function(termo) {
-            const cards = document.querySelectorAll('.cliente-card');
-            const termoLower = termo.toLowerCase();
-            cards.forEach(c => {
-                const txt = c.innerText.toLowerCase();
-                c.style.display = txt.includes(termoLower) ? 'block' : 'none';
-            });
-        };
-
-        window.registrarOcorrenciaSuporte = function(e) {
-            e.preventDefault();
-            const titulo = document.getElementById('sup-titulo').value.trim();
-            const obs = document.getElementById('sup-obs').value.trim();
-
-            const novaOcorrencia = {
-                titulo,
-                obs,
-                data: new Date().toLocaleString('pt-BR'),
-                resolvido: false
-            };
-
-            push(ref(db, 'suporte'), novaOcorrencia).then(() => {
-                document.getElementById('suporte-form').reset();
-                alert("Ocorrência de suporte registrada!");
-            });
-        };
-
-        function renderizarSuporte() {
-            const container = document.getElementById('suporte-lista-container') || document.getElementById('container-suporte');
-            if(!container) return;
-            container.innerHTML = "";
-
-            if(ocorrenciasSuporte.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: #888; padding: 20px;">Nenhuma ocorrência registrada.</div>`;
-                return;
-            }
-
-            ocorrenciasSuporte.forEach(sup => {
-                const card = document.createElement('div');
-                card.className = `suporte-card ${sup.resolvido ? 'resolvido' : ''}`;
-                card.innerHTML = `
-                    <div class="suporte-header">
-                        <span>🎧 ${sup.titulo || sup.cliente || 'Ocorrência'}</span>
-                        <span class="badge-sup ${sup.resolvido ? '' : 'badge-tipo'}">${sup.resolvido ? 'Resolvido' : 'Em Aberto'}</span>
-                    </div>
-                    <div style="font-size: 13px; color: #444; margin-top: 6px;">
-                        <p style="margin: 4px 0;"><strong>Detalhes:</strong> ${sup.obs}</p>
-                        <p style="margin: 4px 0;"><strong>Registrado às:</strong> ${sup.data}</p>
-                    </div>
-                    ${!sup.resolvido ? `<button class="btn-action btn-check" style="width: 100%; margin-top: 8px;" onclick="resolverOcorrencia('${sup.id}')">Marcar como Resolvido</button>` : ''}
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        window.resolverOcorrencia = function(id) {
-            update(ref(db, 'suporte/' + id), { resolvido: true, status: 'Resolvido' });
-        };
-
-        window.exportarBackup = async function() {
-            try {
-                const snapshot = await get(ref(db));
-                if (snapshot.exists()) {
-                    const dadosCompletos = snapshot.val();
-                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dadosCompletos, null, 2));
-                    const downloadAnchor = document.createElement('a');
-                    downloadAnchor.setAttribute("href", dataStr);
-                    downloadAnchor.setAttribute("download", `backup_logistica_${hojeISO}.json`);
-                    document.body.appendChild(downloadAnchor);
-                    downloadAnchor.click();
-                    downloadAnchor.remove();
-                } else {
-                    alert("Nenhum dado encontrado para exportação.");
-                }
-            } catch (error) {
-                console.error(error);
-                alert("Erro ao exportar backup: " + error.message);
-            }
-        };
-
-        window.importarBackup = function(event) {
-            const fileReader = new FileReader();
-            fileReader.onload = function(e) {
-                try {
-                    const dadosImportados = JSON.parse(e.target.result);
-                    if (confirm("⚠️ Importar este arquivo substituirá ou mesclará os dados atuais. Deseja prosseguir?")) {
-                        set(ref(db), dadosImportados).then(() => {
-                            alert("Backup restaurado com sucesso no Firebase!");
-                        });
-                    }
-                } catch (error) {
-                    alert("Arquivo JSON inválido.");
-                }
-            };
-            if(event.target.files[0]) {
-                fileReader.readAsText(event.target.files[0]);
-            }
-        };
-window.visualizarDocumento = function(id) {
-    const rota = (typeof rotas !== 'undefined' ? rotas : entregasGlobais).find(r => r.id === id);
-    if (!rota || !rota.pdfDocumento) {
-        alert("Nenhum documento/foto encontrado.");
-        return;
-    }
-
-    const docData = rota.pdfDocumento;
-    const novaAba = window.open();
-
-    if (novaAba) {
-        novaAba.document.write(`
-            <html>
-                <head>
-                    <title>Foto / Documento - ${rota.cliente || 'Entrega'}</title>
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <style>
-                        body { margin:0; background:#000; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-                        img, iframe { max-width:100%; max-height:100vh; object-fit:contain; border:none; }
-                    </style>
-                </head>
-                <body>
-                    ${docData.startsWith('data:image/') || docData.startsWith('http')
-                        ? `<img src="${docData}" alt="Comprovante">` 
-                        : `<iframe src="${docData}" width="100%" height="100%"></iframe>`
-                    }
-                </body>
-            </html>
-        `);
-    } else {
-        alert("Por favor, permita pop-ups no navegador para abrir a foto.");
-    }
-};
-    </script>
+    </div>
+
+    <div id="modal-imagem" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden p-4">
+        <div class="relative max-w-2xl w-full flex flex-col items-center">
+            <button onclick="fecharModalImagem()" class="absolute -top-10 right-0 text-white text-2xl hover:text-gray-300"><i class="fas fa-times"></i></button>
+            <img id="imagem-ampliada" src="" class="max-h-[80vh] max-w-full rounded-lg shadow-2xl object-contain bg-white">
+        </div>
+    </div>
+
+    <div id="modal-assinatura" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl p-4 w-full max-w-md shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-signature text-blue-500 mr-1"></i>Assinatura do Cliente</h3>
+            <p class="text-xs text-gray-500 mb-2">Peça para o cliente assinar abaixo:</p>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 overflow-hidden">
+                <canvas id="canvas-assinatura" class="w-full h-44 cursor-crosshair touch-none"></canvas>
+            </div>
+            <div class="flex justify-between mt-3">
+                <button type="button" onclick="limparCanvas()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">Limpar</button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="fecharModalAssinatura()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">Cancelar</button>
+                    <button type="button" onclick="salvarAssinatura()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-1.5 rounded font-semibold">Salvar Assinatura</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-pagamento" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-xl p-4 w-full max-w-sm shadow-2xl">
+            <h3 class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-wallet text-green-500 mr-1"></i>Adicionar Pagamentos</h3>
+            <p id="info-pag-total" class="text-xs text-gray-600 mb-3 font-semibold"></p>
+            
+            <div class="space-y-2 text-xs">
+                <div>
+                    <label class="block text-gray-600 font-bold">PIX (R$)</label>
+                    <input type="number" step="0.01" id="pag-pix" class="w-full border p-2 rounded" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-gray-600 font-bold">Crédito (R$)</label>
+                    <input type="number" step="0.01" id="pag-credito" class="w-full border p-2 rounded" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-gray-600 font-bold">Débito (R$)</label>
+                    <input type="number" step="0.01" id="pag-debito" class="w-full border p-2 rounded" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-gray-600 font-bold">Dinheiro (R$)</label>
+                    <input type="number" step="0.01" id="pag-dinheiro" class="w-full border p-2 rounded" placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-4">
+                <button type="button" onclick="fecharModalPagamento()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">Cancelar</button>
+                <button type="button" onclick="salvarMultiplosPagamentos()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-1.5 rounded font-semibold">Confirmar Pagamentos</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 z-40">
+        <div class="container mx-auto max-w-2xl">
+            <h3 class="text-xs font-bold text-gray-500 uppercase mb-2 text-center">Painel de Pagamentos Concluídos</h3>
+            <div class="grid grid-cols-4 gap-2 text-center">
+                <div class="bg-green-50 border border-green-200 p-1.5 rounded">
+                    <span class="block text-[10px] text-gray-500 font-bold">PIX</span>
+                    <span id="total-pix" class="text-xs font-bold text-green-700">R$ 0,00</span>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 p-1.5 rounded">
+                    <span class="block text-[10px] text-gray-500 font-bold">CRÉDITO</span>
+                    <span id="total-credito" class="text-xs font-bold text-blue-700">R$ 0,00</span>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 p-1.5 rounded">
+                    <span class="block text-[10px] text-gray-500 font-bold">DÉBITO</span>
+                    <span id="total-debito" class="text-xs font-bold text-yellow-700">R$ 0,00</span>
+                </div>
+                <div class="bg-purple-50 border border-purple-200 p-1.5 rounded">
+                    <span class="block text-[10px] text-gray-500 font-bold">DINHEIRO</span>
+                    <span id="total-dinheiro" class="text-xs font-bold text-purple-700">R$ 0,00</span>
+                </div>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>
