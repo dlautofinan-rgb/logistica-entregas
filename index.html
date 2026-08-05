@@ -411,13 +411,20 @@
             }
         }
 
-        // --- CHIPS DE BAIRROS ---
+        // --- CHIPS DE BAIRROS (CORRIGIDO PARA EXIBIR TODOS OS BAIRROS CORRETAMENTE) ---
         function atualizarChipsBairros() {
             const container = document.getElementById('bairros-scroll-container');
             if (!container) return;
             container.innerHTML = '';
 
-            const bairrosUnicos = [...new Set(deliveries.map(d => (d.bairro || '').trim().toUpperCase()))].filter(b => b !== '').sort();
+            // Se houver filtro de data ativo, mapeia apenas os bairros daquela data. Se não, mapeia de todas as entregas.
+            dataSelecionadaFiltro = document.getElementById('filtro-data').value;
+            let entregasParaBairros = deliveries;
+            if (dataSelecionadaFiltro) {
+                entregasParaBairros = deliveries.filter(d => d.dataCriacao === dataSelecionadaFiltro);
+            }
+
+            const bairrosUnicos = [...new Set(entregasParaBairros.map(d => (d.bairro || '').trim().toUpperCase()))].filter(b => b !== '').sort();
 
             const btnTodos = document.createElement('button');
             btnTodos.type = 'button';
@@ -680,6 +687,9 @@
             if (bairroSelecionadoFiltro) {
                 entregasFiltradas = entregasFiltradas.filter(d => (d.bairro || '').trim().toUpperCase() === bairroSelecionadoFiltro);
             }
+
+            // Atualiza os chips de bairros baseado na data selecionada sempre que renderizar
+            atualizarChipsBairros();
 
             if (entregasFiltradas.length === 0) {
                 list.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">Nenhuma entrega encontrada para os filtros selecionados.</p>`;
