@@ -64,12 +64,23 @@
             iniciarVerificadorBackupAutomatico();
         });
 
-        // SALVAR OU ATUALIZAR NO FIREBASE
+        // SALVAR OU ATUALIZAR NO FIREBASE (CORRIGIDO PARA EVITAR SOBRESCREVER DADOS AO EDITAR)
         window.salvarNoFirebase = async function(entregaObj, editId = null) {
             try {
                 if (editId) {
                     const entregaRef = ref(db, 'entregas/' + editId);
-                    await set(entregaRef, entregaObj);
+                    // Buscamos o registro atual no Firebase para garantir que não perderemos status, fotos ou dados pré-existentes
+                    const snapshot = await get(entregaRef);
+                    let dadosExistentes = {};
+                    if (snapshot.exists()) {
+                        dadosExistentes = snapshot.val();
+                    }
+                    
+                    const entregaMesclada = {
+                        ...dadosExistentes,
+                        ...entregaObj
+                    };
+                    await set(entregaRef, entregaMesclada);
                 } else {
                     const entregasRef = ref(db, 'entregas');
                     const novaEntregaRef = push(entregasRef);
@@ -234,7 +245,6 @@
                 const bairroFormatado = document.getElementById('bairro').value.trim().toUpperCase();
 
                 if (editId) {
-                    const itemOriginal = deliveries.find(d => d.id === editId);
                     const entregaAtualizada = {
                         dataCriacao: dataSelecionada,
                         cliente: document.getElementById('cliente').value,
@@ -246,11 +256,7 @@
                         cidade: document.getElementById('cidade').value,
                         motorista: document.getElementById('motorista').value,
                         pecas: pecas,
-                        valor: valorTotal,
-                        status: itemOriginal ? itemOriginal.status : 'Pendente',
-                        pagamentos: itemOriginal ? itemOriginal.pagamentos : { pix: 0, credito: 0, debito: 0, dinheiro: 0 },
-                        foto: itemOriginal ? itemOriginal.foto : null,
-                        assinatura: itemOriginal ? itemOriginal.assinatura : null
+                        valor: valorTotal
                     };
                     salvarNoFirebase(entregaAtualizada, editId);
                     cancelarEdicao();
@@ -268,9 +274,11 @@
                         pecas: pecas,
                         valor: valorTotal,
                         status: 'Pendente',
+                        horaConclusao: null,
                         pagamentos: { pix: 0, credito: 0, debito: 0, dinheiro: 0 },
                         foto: null,
-                        assinatura: null
+                        assinatura: null,
+                        observacao: ''
                     };
                     salvarNoFirebase(novaEntrega);
                     document.getElementById('delivery-form').reset();
@@ -378,6 +386,32 @@
             }
         }
 
+        // --- SALVAR OBSERVAÇÃO DO CARD ---
+        window.salvarObservacao = function(id, inputElement) {
+            const item = deliveries.find(d => d.id === id);
+            if(item) {
+                item.observacao = inputElement.value;
+                salvarNoFirebase(item, id);
+            }
+        }
+
+        // --- EXCLUIR BAIRRO (DUPLICADO OU INDESEJADO) ---
+        window.excluirBairroCard = function(bairroAlvo) {
+            const bairroNome = bairroAlvo.trim().toUpperCase();
+            if(confirm(`Deseja alterar/limpar o bairro "${bairroNome}" de todas as entregas que o utilizam? (Isso remove este bairro da lista de opções)`)) {
+                let alterados = 0;
+                deliveries.forEach(d => {
+                    if((d.bairro || '').trim().toUpperCase() === bairroNome) {
+                        d.bairro = 'OUTROS';
+                        salvarNoFirebase(d, d.id);
+                        alterados++;
+                    }
+                });
+                bairroSelecionadoFiltro = '';
+                alert(`Bairro limpo em ${alterados} entrega(s) e redefinido para "OUTROS".`);
+            }
+        }
+
         // --- CHIPS DE BAIRROS ---
         function atualizarChipsBairros() {
             const container = document.getElementById('bairros-scroll-container');
@@ -398,16 +432,32 @@
             container.appendChild(btnTodos);
 
             bairrosUnicos.forEach(bairro => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = `whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm uppercase ${bairroSelecionadoFiltro === bairro ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`;
-                btn.innerText = bairro;
-                btn.onclick = () => {
+                const wrapper = document.createElement('div');
+                wrapper.className = `inline-flex items-center rounded-full text-xs font-bold transition shadow-sm overflow-hidden border ${bairroSelecionadoFiltro === bairro ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`;
+
+                const btnFiltro = document.createElement('button');
+                btnFiltro.type = 'button';
+                btnFiltro.className = 'px-3 py-1.5 uppercase';
+                btnFiltro.innerText = bairro;
+                btnFiltro.onclick = () => {
                     bairroSelecionadoFiltro = bairro;
                     atualizarChipsBairros();
                     renderDeliveries();
                 };
-                container.appendChild(btn);
+
+                const btnDeletarBairro = document.createElement('button');
+                btnDeletarBairro.type = 'button';
+                btnDeletarBairro.className = `px-2 py-1.5 hover:bg-red-500 hover:text-white transition text-[10px] ${bairroSelecionadoFiltro === bairro ? 'text-white/80' : 'text-gray-400'}`;
+                btnDeletarBairro.title = `Excluir/Zerar bairro ${bairro} duplicado`;
+                btnDeletarBairro.innerHTML = '<i class="fas fa-times"></i>';
+                btnDeletarBairro.onclick = (e) => {
+                    e.stopPropagation();
+                    excluirBairroCard(bairro);
+                };
+
+                wrapper.appendChild(btnFiltro);
+                wrapper.appendChild(btnDeletarBairro);
+                container.appendChild(wrapper);
             });
         }
 
@@ -447,7 +497,19 @@
         window.concluirEntrega = function(id) {
             const item = deliveries.find(d => d.id === id);
             if(item) {
+                const agora = new Date();
+                const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 item.status = 'Concluída';
+                item.horaConclusao = horaFormatada;
+                salvarNoFirebase(item, id);
+            }
+        }
+
+        window.refazerEntrega = function(id) {
+            const item = deliveries.find(d => d.id === id);
+            if(item) {
+                item.status = 'Pendente';
+                item.horaConclusao = null;
                 salvarNoFirebase(item, id);
             }
         }
@@ -647,12 +709,24 @@
                 let pagTexto = pagStr.length > 0 ? `<span class="text-blue-600 font-normal ml-1">(${pagStr.join(' | ')})</span>` : '';
 
                 let dataExibicao = d.dataCriacao ? d.dataCriacao.split('-').reverse().join('/') : 'Data não reg.';
+                let horaConclTexto = d.horaConclusao ? `<span class="text-xs text-green-700 font-bold ml-2"><i class="fas fa-clock mr-1"></i>Às ${d.horaConclusao}</span>` : '';
+
+                // Botão de ação de conclusão alterável (Concluir vs Refazer)
+                let botaoStatusHtml = '';
+                if (d.status === 'Concluída') {
+                    botaoStatusHtml = `<button onclick="refazerEntrega('${d.id}')" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded shadow flex items-center gap-1"><i class="fas fa-undo mr-1"></i>Refazer</button>`;
+                } else {
+                    botaoStatusHtml = `<button onclick="concluirEntrega('${d.id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded shadow"><i class="fas fa-check mr-1"></i>Concluir</button>`;
+                }
 
                 card.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
                         <div>
-                            <span class="text-xs font-bold px-2 py-0.5 rounded ${d.status === 'Concluída' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${d.status}</span>
-                            <span class="text-xs text-gray-400 ml-1 font-semibold"><i class="fas fa-calendar-alt mr-1"></i>${dataExibicao}</span>
+                            <div class="flex items-center">
+                                <span class="text-xs font-bold px-2 py-0.5 rounded ${d.status === 'Concluída' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${d.status}</span>
+                                ${horaConclTexto}
+                            </div>
+                            <span class="text-xs text-gray-400 ml-1 font-semibold mt-1 inline-block"><i class="fas fa-calendar-alt mr-1"></i>${dataExibicao}</span>
                             <h3 class="font-bold text-gray-800 text-sm mt-1"><i class="fas fa-user text-blue-500 mr-1"></i> ${d.cliente} <span class="text-gray-500 font-normal ml-1">(${d.contato || 'Sem tel'})</span></h3>
                         </div>
                         <div class="flex items-center gap-1">
@@ -665,7 +739,12 @@
                     
                     ${pecasHtml}
 
-                    <p class="text-xs font-bold text-gray-700 mb-3">Valor Total: R$ ${Number(d.valor || 0).toFixed(2)} ${pagTexto}</p>
+                    <p class="text-xs font-bold text-gray-700 mb-2">Valor Total: R$ ${Number(d.valor || 0).toFixed(2)} ${pagTexto}</p>
+
+                    <div class="mb-3 bg-amber-50/60 p-2 rounded border border-amber-200">
+                        <label class="block text-[11px] font-bold text-amber-800 mb-1"><i class="fas fa-comment-alt mr-1"></i>Observação do Motorista:</label>
+                        <input type="text" value="${d.observacao || ''}" placeholder="Ex: Deixar com o vizinho, portão fechado..." onblur="salvarObservacao('${d.id}', this)" class="w-full border border-amber-300 bg-white p-1.5 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                    </div>
 
                     <div class="mb-3 flex flex-wrap items-center gap-3">
                         ${d.foto ? `<div class="text-center"><span class="block text-[10px] text-gray-400">Foto</span><img src="${d.foto}" class="w-14 h-14 object-cover rounded border shadow-sm cursor-pointer hover:opacity-80 transition" onclick="ampliarImagem('${d.foto}')" title="Clique para ampliar"></div>` : ''}
@@ -683,7 +762,7 @@
                     </div>
 
                     <div class="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100 text-xs">
-                        <button onclick="concluirEntrega('${d.id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded shadow"><i class="fas fa-check mr-1"></i>Concluir</button>
+                        ${botaoStatusHtml}
                         
                         <button onclick="abrirGps('${d.id}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1">
                             <i class="fas fa-location-arrow"></i> GPS
@@ -709,7 +788,6 @@
         function updateDashboard() {
             let totPix = 0, totCredito = 0, totDebito = 0, totDinheiro = 0;
 
-            // O painel de pagamentos agora soma apenas as entregas da data selecionada no filtro (ou todas se o filtro de data estiver limpo)
             let entregasParaDashboard = deliveries;
             if (dataSelecionadaFiltro) {
                 entregasParaDashboard = deliveries.filter(d => d.dataCriacao === dataSelecionadaFiltro);
@@ -854,7 +932,7 @@
             </div>
 
             <div class="mb-2">
-                <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Bairro (Clique para selecionar)</label>
+                <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Bairro <span class="text-gray-400 font-normal">(Clique no X para excluir bairro duplicado/indesejado)</span></label>
                 <div id="bairros-scroll-container" class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin"></div>
             </div>
 
