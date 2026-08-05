@@ -64,7 +64,7 @@
             iniciarVerificadorBackupAutomatico();
         });
 
-        // SALVAR OU ATUALIZAR NO FIREBASE (CORRIGIDO PARA EVITAR SOBRESCREVER DADOS AO EDITAR)
+        // SALVAR OU ATUALIZAR NO FIREBASE
         window.salvarNoFirebase = async function(entregaObj, editId = null) {
             try {
                 if (editId) {
@@ -154,7 +154,7 @@
             }, 60000);
         }
 
-        // PREENCHIMENTO AUTOMÁTICO PELO NOME DO CLIENTE JÁ CADASTRADO
+        // PREENCHIMENTO AUTOMÁTICO PELO NOME DO CLIENTE
         window.atualizarDicasClientes = function() {
             const datalist = document.getElementById('lista-clientes');
             if(!datalist) return;
@@ -394,7 +394,7 @@
             }
         }
 
-        // --- EXCLUIR BAIRRO (DUPLICADO OU INDESEJADO) ---
+        // --- EXCLUIR BAIRRO ---
         window.excluirBairroCard = function(bairroAlvo) {
             const bairroNome = bairroAlvo.trim().toUpperCase();
             if(confirm(`Deseja alterar/limpar o bairro "${bairroNome}" de todas as entregas que o utilizam? (Isso remove este bairro da lista de opções)`)) {
@@ -411,13 +411,12 @@
             }
         }
 
-        // --- CHIPS DE BAIRROS (CORRIGIDO PARA EXIBIR TODOS OS BAIRROS CORRETAMENTE) ---
+        // --- CHIPS DE BAIRROS (FORMATADO COM TAMANHO ADEQUADO E BOTÃO EXCLUSIVO DE EXCLUIR) ---
         function atualizarChipsBairros() {
             const container = document.getElementById('bairros-scroll-container');
             if (!container) return;
             container.innerHTML = '';
 
-            // Se houver filtro de data ativo, mapeia apenas os bairros daquela data. Se não, mapeia de todas as entregas.
             dataSelecionadaFiltro = document.getElementById('filtro-data').value;
             let entregasParaBairros = deliveries;
             if (dataSelecionadaFiltro) {
@@ -426,10 +425,11 @@
 
             const bairrosUnicos = [...new Set(entregasParaBairros.map(d => (d.bairro || '').trim().toUpperCase()))].filter(b => b !== '').sort();
 
+            // Botão "Todos os Bairros"
             const btnTodos = document.createElement('button');
             btnTodos.type = 'button';
-            btnTodos.className = `whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm ${bairroSelecionadoFiltro === '' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`;
-            btnTodos.innerText = 'Todos os Bairros';
+            btnTodos.className = `whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm border flex items-center gap-1.5 ${bairroSelecionadoFiltro === '' ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`;
+            btnTodos.innerHTML = `<i class="fas fa-th-large text-[11px]"></i> Todos os Bairros`;
             btnTodos.onclick = () => {
                 bairroSelecionadoFiltro = '';
                 atualizarChipsBairros();
@@ -439,23 +439,25 @@
 
             bairrosUnicos.forEach(bairro => {
                 const wrapper = document.createElement('div');
-                wrapper.className = `inline-flex items-center rounded-full text-xs font-bold transition shadow-sm overflow-hidden border ${bairroSelecionadoFiltro === bairro ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`;
+                wrapper.className = `inline-flex items-center rounded-xl text-xs font-bold transition shadow-sm overflow-hidden border ${bairroSelecionadoFiltro === bairro ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300' : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50'}`;
 
+                // Botão de clique para selecionar e filtrar o Bairro
                 const btnFiltro = document.createElement('button');
                 btnFiltro.type = 'button';
-                btnFiltro.className = 'px-3 py-1.5 uppercase';
-                btnFiltro.innerText = bairro;
+                btnFiltro.className = 'px-3.5 py-2 uppercase tracking-wide font-bold flex items-center gap-1.5';
+                btnFiltro.innerHTML = `<i class="fas fa-map-marker-alt text-[10px] ${bairroSelecionadoFiltro === bairro ? 'text-white' : 'text-red-500'}"></i> ${bairro}`;
                 btnFiltro.onclick = () => {
                     bairroSelecionadoFiltro = bairro;
                     atualizarChipsBairros();
                     renderDeliveries();
                 };
 
+                // Botão dedicado de exclusão/limpeza do bairro
                 const btnDeletarBairro = document.createElement('button');
                 btnDeletarBairro.type = 'button';
-                btnDeletarBairro.className = `px-2 py-1.5 hover:bg-red-500 hover:text-white transition text-[10px] ${bairroSelecionadoFiltro === bairro ? 'text-white/80' : 'text-gray-400'}`;
-                btnDeletarBairro.title = `Excluir/Zerar bairro ${bairro} duplicado`;
-                btnDeletarBairro.innerHTML = '<i class="fas fa-times"></i>';
+                btnDeletarBairro.className = `px-2.5 py-2 transition flex items-center justify-center border-l ${bairroSelecionadoFiltro === bairro ? 'border-blue-500 text-white hover:bg-blue-700' : 'border-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-600'}`;
+                btnDeletarBairro.title = `Excluir/Zerar bairro ${bairro}`;
+                btnDeletarBairro.innerHTML = '<i class="fas fa-trash-alt text-[11px]"></i>';
                 btnDeletarBairro.onclick = (e) => {
                     e.stopPropagation();
                     excluirBairroCard(bairro);
@@ -688,7 +690,6 @@
                 entregasFiltradas = entregasFiltradas.filter(d => (d.bairro || '').trim().toUpperCase() === bairroSelecionadoFiltro);
             }
 
-            // Atualiza os chips de bairros baseado na data selecionada sempre que renderizar
             atualizarChipsBairros();
 
             if (entregasFiltradas.length === 0) {
@@ -940,8 +941,8 @@
             </div>
 
             <div class="mb-2">
-                <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Bairro <span class="text-gray-400 font-normal">(Clique no X para excluir bairro duplicado/indesejado)</span></label>
-                <div id="bairros-scroll-container" class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin"></div>
+                <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Bairro <span class="text-gray-400 font-normal">(Clique na lixeira para excluir/limpar o bairro)</span></label>
+                <div id="bairros-scroll-container" class="flex gap-2.5 overflow-x-auto py-2 scrollbar-thin items-center"></div>
             </div>
 
             <div class="flex justify-end pt-1 border-t">
