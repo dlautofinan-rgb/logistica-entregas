@@ -69,7 +69,6 @@
             try {
                 if (editId) {
                     const entregaRef = ref(db, 'entregas/' + editId);
-                    // Buscamos o registro atual no Firebase para garantir que não perderemos status, fotos ou dados pré-existentes
                     const snapshot = await get(entregaRef);
                     let dadosExistentes = {};
                     if (snapshot.exists()) {
@@ -711,7 +710,6 @@
                 let dataExibicao = d.dataCriacao ? d.dataCriacao.split('-').reverse().join('/') : 'Data não reg.';
                 let horaConclTexto = d.horaConclusao ? `<span class="text-xs text-green-700 font-bold ml-2"><i class="fas fa-clock mr-1"></i>Às ${d.horaConclusao}</span>` : '';
 
-                // Botão de ação de conclusão alterável (Concluir vs Refazer)
                 let botaoStatusHtml = '';
                 if (d.status === 'Concluída') {
                     botaoStatusHtml = `<button onclick="refazerEntrega('${d.id}')" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded shadow flex items-center gap-1"><i class="fas fa-undo mr-1"></i>Refazer</button>`;
