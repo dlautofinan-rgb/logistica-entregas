@@ -784,10 +784,10 @@
             let totPix = 0, totCredito = 0, totDebito = 0, totDinheiro = 0;
 
             let entregasParaDashboard = deliveries;
-            dataSelecionadaFiltro = document.getElementById('filtro-data').value;
+            const inputFiltroData = document.getElementById('filtro-data');
             
-            if (dataSelecionadaFiltro) {
-                entregasParaDashboard = deliveries.filter(d => d.dataCriacao === dataSelecionadaFiltro);
+            if (inputFiltroData && inputFiltroData.value) {
+                entregasParaDashboard = deliveries.filter(d => d.dataCriacao === inputFiltroData.value);
             }
 
             entregasParaDashboard.forEach(d => {
