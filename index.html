@@ -3,880 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Entregas - Firebase</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>DL Rotas Log - Gestão de Entregas</title>
     
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, get, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCuFiZ4H9u3-od3lVXy2BXLiPHmnQRw1Lw",
-            authDomain: "dl-auto-33f62.firebaseapp.com",
-            databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com",
-            projectId: "dl-auto-33f62",
-            storageBucket: "dl-auto-33f62.firebasestorage.app",
-            messagingSenderId: "81729132461",
-            appId: "1:81729132461:web:35c1579e8b3d4f91863324"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        let deliveries = [];
-        let entregaSelecionadaId = null;
-        let bairroSelecionadoFiltro = '';
-        let dataSelecionadaFiltro = '';
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const hoje = new Date().toISOString().split('T')[0];
-            document.getElementById('data-entrega').value = hoje;
-            
-            dataSelecionadaFiltro = hoje;
-            document.getElementById('filtro-data').value = hoje;
-            
-            const statusBadge = document.getElementById('sync-status');
-            statusBadge.innerText = 'Online (Firebase)';
-            statusBadge.className = 'text-xs bg-green-500 text-white px-2 py-1 rounded font-semibold';
-
-            const entregasRef = ref(db, 'entregas');
-            onValue(entregasRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    deliveries = Object.keys(data).map(key => ({
-                        id: key,
-                        ...data[key]
-                    }));
-                } else {
-                    deliveries = [];
-                }
-                atualizarChipsBairros();
-                atualizarDicasClientes();
-                renderDeliveries();
-                updateDashboard();
-            });
-
-            iniciarVerificadorBackupAutomatico();
-        });
-
-        window.salvarNoFirebase = async function(entregaObj, editId = null) {
-            try {
-                if (editId) {
-                    const entregaRef = ref(db, 'entregas/' + editId);
-                    const snapshot = await get(entregaRef);
-                    let dadosExistentes = {};
-                    if (snapshot.exists()) {
-                        dadosExistentes = snapshot.val();
-                    }
-                    
-                    const entregaMesclada = {
-                        ...dadosExistentes,
-                        ...entregaObj
-                    };
-                    await set(entregaRef, entregaMesclada);
-                } else {
-                    const entregasRef = ref(db, 'entregas');
-                    const novaEntregaRef = push(entregasRef);
-                    await set(novaEntregaRef, entregaObj);
-                }
-                updateDashboard();
-            } catch (error) {
-                console.error("Erro ao salvar no Firebase:", error);
-                alert("Erro ao salvar dados na nuvem. Verifique sua conexão.");
-            }
-        };
-
-        window.excluirEntregaFirebase = async function(id) {
-            if(confirm('Deseja excluir esta entrega?')) {
-                try {
-                    const entregaRef = ref(db, 'entregas/' + id);
-                    await remove(entregaRef);
-                    updateDashboard();
-                } catch (error) {
-                    console.error("Erro ao excluir:", error);
-                }
-            }
-        };
-
-        function realizarBackupAutomatico() {
-            const hojeStr = new Date().toISOString().split('T')[0];
-            const ultimoBackup = localStorage.getItem('ultimo_backup_data');
-
-            if (ultimoBackup !== hojeStr && deliveries.length > 0) {
-                const dataStr = JSON.stringify(deliveries, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `backup-entregas-${hojeStr}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                localStorage.setItem('ultimo_backup_data', hojeStr);
-            }
-        }
-
-        window.realizarBackupManual = function() {
-            if (deliveries.length === 0) {
-                alert('Não há entregas cadastradas para realizar o backup.');
-                return;
-            }
-            const hojeStr = new Date().toISOString().split('T')[0];
-            const dataStr = JSON.stringify(deliveries, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `backup-manual-${hojeStr}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function iniciarVerificadorBackupAutomatico() {
-            setInterval(() => {
-                const agora = new Date();
-                const hora = agora.getHours();
-                const minuto = agora.getMinutes();
-
-                if (hora === 15 && minuto === 0) {
-                    realizarBackupAutomatico();
-                }
-            }, 60000);
-        }
-
-        window.atualizarDicasClientes = function() {
-            const datalist = document.getElementById('lista-clientes');
-            if(!datalist) return;
-            datalist.innerHTML = '';
-
-            const clientesMap = {};
-            deliveries.forEach(d => {
-                if (d.cliente) {
-                    clientesMap[d.cliente.trim().toUpperCase()] = {
-                        cliente: d.cliente,
-                        contato: d.contato || '',
-                        cep: d.cep || '',
-                        rua: d.rua || '',
-                        numero: d.numero || '',
-                        bairro: d.bairro || '',
-                        cidade: d.cidade || ''
-                    };
-                }
-            });
-
-            Object.values(clientesMap).forEach(c => {
-                const option = document.createElement('option');
-                option.value = c.cliente;
-                option.dataset.contato = c.contato;
-                option.dataset.cep = c.cep;
-                option.dataset.rua = c.rua;
-                option.dataset.numero = c.numero;
-                option.dataset.bairro = c.bairro;
-                option.dataset.cidade = c.cidade;
-                datalist.appendChild(option);
-            });
-        }
-
-        window.verificarAutocompletarCliente = function() {
-            const nomeDigitado = document.getElementById('cliente').value.trim().toUpperCase();
-            const datalist = document.getElementById('lista-clientes');
-            const options = datalist.options;
-
-            for (let i = 0; i < options.length; i++) {
-                if (options[i].value.trim().toUpperCase() === nomeDigitado) {
-                    document.getElementById('contato').value = options[i].dataset.contato || '';
-                    document.getElementById('cep').value = options[i].dataset.cep || '';
-                    document.getElementById('rua').value = options[i].dataset.rua || '';
-                    document.getElementById('numero').value = options[i].dataset.numero || '';
-                    document.getElementById('bairro').value = options[i].dataset.bairro || '';
-                    document.getElementById('cidade').value = options[i].dataset.cidade || '';
-                    break;
-                }
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('cep').addEventListener('blur', async (e) => {
-                const cep = e.target.value.replace(/\D/g, '');
-                if (cep.length === 8) {
-                    try {
-                        const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-                        const data = await response.json();
-                        if (!data.erro) {
-                            document.getElementById('rua').value = data.logradouro;
-                            document.getElementById('bairro').value = (data.bairro || '').trim().toUpperCase();
-                            document.getElementById('cidade').value = `${data.localidade} - ${data.uf}`;
-                        } else {
-                            alert('CEP não encontrado.');
-                        }
-                    } catch (error) {
-                        console.error('Erro ao buscar CEP:', error);
-                    }
-                }
-            });
-
-            document.getElementById('delivery-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const editId = document.getElementById('edit-id').value;
-                const dataSelecionada = document.getElementById('data-entrega').value;
-                const pecas = [];
-                let valorTotal = 0;
-
-                document.querySelectorAll('.item-peca').forEach(item => {
-                    const descricao = item.querySelector('.desc-peca').value;
-                    const valor = parseFloat(item.querySelector('.valor-peca').value) || 0;
-                    pecas.push({ descricao, valor });
-                    valorTotal += valor;
-                });
-
-                const bairroFormatado = document.getElementById('bairro').value.trim().toUpperCase();
-
-                if (editId) {
-                    const entregaAtualizada = {
-                        dataCriacao: dataSelecionada,
-                        cliente: document.getElementById('cliente').value,
-                        contato: document.getElementById('contato').value || '',
-                        cep: document.getElementById('cep').value,
-                        rua: document.getElementById('rua').value,
-                        numero: document.getElementById('numero').value,
-                        bairro: bairroFormatado,
-                        cidade: document.getElementById('cidade').value,
-                        motorista: document.getElementById('motorista').value,
-                        pecas: pecas,
-                        valor: valorTotal
-                    };
-                    salvarNoFirebase(entregaAtualizada, editId);
-                    cancelarEdicao();
-                } else {
-                    const novaEntrega = {
-                        dataCriacao: dataSelecionada,
-                        cliente: document.getElementById('cliente').value,
-                        contato: document.getElementById('contato').value || '',
-                        cep: document.getElementById('cep').value,
-                        rua: document.getElementById('rua').value,
-                        numero: document.getElementById('numero').value,
-                        bairro: bairroFormatado,
-                        cidade: document.getElementById('cidade').value,
-                        motorista: document.getElementById('motorista').value,
-                        pecas: pecas,
-                        valor: valorTotal,
-                        status: 'Pendente',
-                        horaConclusao: null,
-                        pagamentos: { pix: 0, credito: 0, debito: 0, dinheiro: 0 },
-                        foto: null,
-                        assinatura: null,
-                        observacao: ''
-                    };
-                    salvarNoFirebase(novaEntrega);
-                    document.getElementById('delivery-form').reset();
-                    resetarFormularioHTML();
-                }
-            });
-        });
-
-        window.adicionarCampoPeca = function(descricao = '', valor = '') {
-            const container = document.getElementById('lista-pecas-form');
-            const div = document.createElement('div');
-            div.className = 'flex gap-2 item-peca';
-            div.innerHTML = `
-                <input type="text" placeholder="Nome/Descrição da Peça" value="${descricao}" class="w-full border p-2 rounded text-sm desc-peca" required>
-                <input type="number" step="0.01" placeholder="Valor (R$)" value="${valor !== '' ? valor : ''}" class="w-32 border p-2 rounded text-sm valor-peca" required oninput="calcularTotalForm()">
-                <button type="button" onclick="this.parentElement.remove(); calcularTotalForm();" class="bg-red-100 text-red-600 px-2 rounded hover:bg-red-200"><i class="fas fa-trash"></i></button>
-            `;
-            container.appendChild(div);
-            calcularTotalForm();
-        }
-
-        window.calcularTotalForm = function() {
-            const inputs = document.querySelectorAll('.valor-peca');
-            let total = 0;
-            inputs.forEach(input => {
-                total += parseFloat(input.value) || 0;
-            });
-            document.getElementById('valor-total-exibicao').innerText = `R$ ${total.toFixed(2)}`;
-        }
-
-        window.resetarFormularioHTML = function() {
-            const hoje = new Date().toISOString().split('T')[0];
-            document.getElementById('data-entrega').value = hoje;
-            document.getElementById('lista-pecas-form').innerHTML = `
-                <div class="flex gap-2 item-peca">
-                    <input type="text" placeholder="Nome/Descrição da Peça" class="w-full border p-2 rounded text-sm desc-peca" required>
-                    <input type="number" step="0.01" placeholder="Valor (R$)" class="w-32 border p-2 rounded text-sm valor-peca" required oninput="calcularTotalForm()">
-                </div>
-            `;
-            document.getElementById('valor-total-exibicao').innerText = 'R$ 0,00';
-        }
-
-        window.editarEntrega = function(id) {
-            const item = deliveries.find(d => d.id === id);
-            if(!item) return;
-
-            document.getElementById('edit-id').value = item.id;
-            document.getElementById('data-entrega').value = item.dataCriacao || new Date().toISOString().split('T')[0];
-            document.getElementById('cliente').value = item.cliente;
-            document.getElementById('contato').value = item.contato || '';
-            document.getElementById('cep').value = item.cep;
-            document.getElementById('rua').value = item.rua;
-            document.getElementById('numero').value = item.numero;
-            document.getElementById('bairro').value = item.bairro;
-            document.getElementById('cidade').value = item.cidade;
-            document.getElementById('motorista').value = item.motorista;
-
-            const container = document.getElementById('lista-pecas-form');
-            container.innerHTML = '';
-            if(item.pecas && item.pecas.length > 0) {
-                item.pecas.forEach(p => {
-                    adicionarCampoPeca(p.descricao, p.valor);
-                });
-            } else {
-                adicionarCampoPeca('Peça única', item.valor);
-            }
-
-            document.getElementById('form-title').innerHTML = `<i class="fas fa-edit mr-2 text-blue-500"></i>Editar Entrega (#${item.id.slice(-4)})`;
-            document.getElementById('btn-submit').innerText = 'Atualizar Dados da Entrega';
-            document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        window.cancelarEdicao = function() {
-            document.getElementById('delivery-form').reset();
-            document.getElementById('edit-id').value = '';
-            document.getElementById('form-title').innerHTML = `<i class="fas fa-user-plus mr-2 text-blue-500"></i>Cadastrar Nova Entrega`;
-            document.getElementById('btn-submit').innerText = 'Salvar Entrega no Firebase';
-            document.getElementById('btn-cancelar-edicao').classList.add('hidden');
-            resetarFormularioHTML();
-        }
-
-        window.abrirModalMotorista = function(id) {
-            entregaSelecionadaId = id;
-            const item = deliveries.find(d => d.id === id);
-            if(item) {
-                document.getElementById('novo-motorista-select').value = item.motorista;
-                document.getElementById('modal-motorista').classList.remove('hidden');
-            }
-        }
-
-        window.fecharModalMotorista = function() {
-            document.getElementById('modal-motorista').classList.add('hidden');
-            entregaSelecionadaId = null;
-        }
-
-        window.salvarNovoMotorista = function() {
-            const item = deliveries.find(d => d.id === entregaSelecionadaId);
-            if(item) {
-                item.motorista = document.getElementById('novo-motorista-select').value;
-                salvarNoFirebase(item, item.id);
-                fecharModalMotorista();
-            }
-        }
-
-        window.salvarObservacao = function(id, inputElement) {
-            const item = deliveries.find(d => d.id === id);
-            if(item) {
-                item.observacao = inputElement.value;
-                salvarNoFirebase(item, id);
-            }
-        }
-
-        window.excluirBairroCard = function(bairroAlvo) {
-            const bairroNome = bairroAlvo.trim().toUpperCase();
-            if(confirm(`Deseja alterar/limpar o bairro "${bairroNome}" de todas as entregas que o utilizam? (Isso remove este bairro da lista de opções)`)) {
-                let alterados = 0;
-                deliveries.forEach(d => {
-                    if((d.bairro || '').trim().toUpperCase() === bairroNome) {
-                        d.bairro = 'OUTROS';
-                        salvarNoFirebase(d, d.id);
-                        alterados++;
-                    }
-                });
-                bairroSelecionadoFiltro = '';
-                alert(`Bairro limpo em ${alterados} entrega(s) e redefinido para "OUTROS".`);
-            }
-        }
-
-        function atualizarChipsBairros() {
-            const container = document.getElementById('bairros-scroll-container');
-            if (!container) return;
-            container.innerHTML = '';
-
-            dataSelecionadaFiltro = document.getElementById('filtro-data').value;
-            let entregasParaBairros = deliveries;
-            if (dataSelecionadaFiltro) {
-                entregasParaBairros = deliveries.filter(d => d.dataCriacao === dataSelecionadaFiltro);
-            }
-
-            const bairrosUnicos = [...new Set(entregasParaBairros.map(d => (d.bairro || '').trim().toUpperCase()))].filter(b => b !== '').sort();
-
-            const btnTodos = document.createElement('div');
-            btnTodos.className = `flex items-center justify-between p-2.5 rounded-lg text-xs font-bold transition border cursor-pointer ${bairroSelecionadoFiltro === '' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`;
-            btnTodos.innerHTML = `
-                <span class="flex items-center gap-2"><i class="fas fa-th-large text-[11px]"></i> Todos os Bairros</span>
-            `;
-            btnTodos.onclick = () => {
-                bairroSelecionadoFiltro = '';
-                atualizarChipsBairros();
-                renderDeliveries();
-            };
-            container.appendChild(btnTodos);
-
-            bairrosUnicos.forEach(bairro => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = `flex items-center justify-between p-2.5 rounded-lg text-xs font-bold transition border ${bairroSelecionadoFiltro === bairro ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50'}`;
-
-                const btnFiltro = document.createElement('button');
-                btnFiltro.type = 'button';
-                btnFiltro.className = 'flex items-center gap-2 uppercase tracking-wide text-left flex-1 truncate';
-                btnFiltro.innerHTML = `<i class="fas fa-map-marker-alt text-[10px] ${bairroSelecionadoFiltro === bairro ? 'text-white' : 'text-red-500'}"></i> <span class="truncate">${bairro}</span>`;
-                btnFiltro.onclick = () => {
-                    bairroSelecionadoFiltro = bairro;
-                    atualizarChipsBairros();
-                    renderDeliveries();
-                };
-
-                const btnDeletarBairro = document.createElement('button');
-                btnDeletarBairro.type = 'button';
-                btnDeletarBairro.className = `p-1.5 ml-2 rounded transition flex items-center justify-center ${bairroSelecionadoFiltro === bairro ? 'text-white hover:bg-blue-700' : 'text-gray-400 hover:bg-red-100 hover:text-red-600'}`;
-                btnDeletarBairro.title = `Excluir/Zerar bairro ${bairro}`;
-                btnDeletarBairro.innerHTML = '<i class="fas fa-trash-alt text-[11px]"></i>';
-                btnDeletarBairro.onclick = (e) => {
-                    e.stopPropagation();
-                    excluirBairroCard(bairro);
-                };
-
-                itemDiv.appendChild(btnFiltro);
-                itemDiv.appendChild(btnDeletarBairro);
-                container.appendChild(itemDiv);
-            });
-        }
-
-        window.limparFiltros = function() {
-            document.getElementById('filtro-data').value = '';
-            dataSelecionadaFiltro = '';
-            document.getElementById('filtro-motorista').value = '';
-            bairroSelecionadoFiltro = '';
-            atualizarChipsBairros();
-            renderDeliveries();
-            updateDashboard();
-        }
-
-        window.enviarWhatsApp = function(id) {
-            const item = deliveries.find(d => d.id === id);
-            if(item && item.contato) {
-                let fone = item.contato.replace(/\D/g, '');
-                if (!fone.startsWith('55')) fone = '55' + fone;
-
-                let pecasTexto = item.pecas.map(p => `- ${p.descricao} (R$ ${p.valor.toFixed(2)})`).join('%0A');
-                let msg = `Olá *${item.cliente}*! Aqui é o motorista *${item.motorista}*. Estou saindo para realizar a sua entrega.%0A%0A*Endereço:* ${item.rua}, nº ${item.numero} - ${item.bairro}, ${item.cidade}%0A*Itens:*%0A${pecasTexto}%0A*Valor Total:* R$ ${item.valor.toFixed(2)}%0A%0APor favor, confirme se está no local!`;
-
-                window.open(`https://wa.me/${fone}?text=${msg}`, '_blank');
-            } else {
-                alert('Número de contato inválido ou ausente.');
-            }
-        }
-
-        window.abrirGps = function(id) {
-            const item = deliveries.find(d => d.id === id);
-            if(!item) return;
-
-            const queryLimpa = `${item.rua}, ${item.numero}, ${item.bairro}, ${item.cidade}, ${item.cep}`;
-            const urlGoogleMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryLimpa)}`;
-            window.open(urlGoogleMaps, '_blank');
-        }
-
-        window.concluirEntrega = function(id) {
-            const item = deliveries.find(d => d.id === id);
-            if(item) {
-                const agora = new Date();
-                const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                item.status = 'Concluída';
-                item.horaConclusao = horaFormatada;
-                salvarNoFirebase(item, id);
-            }
-        }
-
-        window.refazerEntrega = function(id) {
-            const item = deliveries.find(d => d.id === id);
-            if(item) {
-                item.status = 'Pendente';
-                item.horaConclusao = null;
-                salvarNoFirebase(item, id);
-            }
-        }
-
-        window.excluirEntrega = function(id) {
-            excluirEntregaFirebase(id);
-        }
-
-        window.abrirModalPagamento = function(id) {
-            entregaSelecionadaId = id;
-            const item = deliveries.find(d => d.id === id);
-            if(item) {
-                document.getElementById('info-pag-total').innerText = `Valor Total: R$ ${item.valor.toFixed(2)}`;
-                document.getElementById('pag-pix').value = item.pagamentos?.pix || '';
-                document.getElementById('pag-credito').value = item.pagamentos?.credito || '';
-                document.getElementById('pag-debito').value = item.pagamentos?.debito || '';
-                document.getElementById('pag-dinheiro').value = item.pagamentos?.dinheiro || '';
-                document.getElementById('modal-pagamento').classList.remove('hidden');
-            }
-        }
-
-        window.fecharModalPagamento = function() {
-            document.getElementById('modal-pagamento').classList.add('hidden');
-            entregaSelecionadaId = null;
-        }
-
-        window.salvarMultiplosPagamentos = function() {
-            const item = deliveries.find(d => d.id === entregaSelecionadaId);
-            if(item) {
-                item.pagamentos = {
-                    pix: parseFloat(document.getElementById('pag-pix').value) || 0,
-                    credito: parseFloat(document.getElementById('pag-credito').value) || 0,
-                    debito: parseFloat(document.getElementById('pag-debito').value) || 0,
-                    dinheiro: parseFloat(document.getElementById('pag-dinheiro').value) || 0
-                };
-                salvarNoFirebase(item, item.id);
-                fecharModalPagamento();
-                updateDashboard();
-            }
-        }
-
-        let canvas, ctx, desenhando = false;
-
-        function initCanvas() {
-            canvas = document.getElementById('canvas-assinatura');
-            if(!canvas) return;
-            ctx = canvas.getContext('2d');
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-
-            canvas.onmousedown = (e) => { desenhando = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); };
-            canvas.onmousemove = (e) => { if(desenhando) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
-            canvas.onmouseup = () => { desenhando = false; };
-            canvas.onmouseleave = () => { desenhando = false; };
-
-            canvas.ontouchstart = (e) => {
-                e.preventDefault();
-                const rect = canvas.getBoundingClientRect();
-                const touch = e.touches[0];
-                desenhando = true;
-                ctx.beginPath();
-                ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
-            };
-            canvas.ontouchmove = (e) => {
-                e.preventDefault();
-                if(!desenhando) return;
-                const rect = canvas.getBoundingClientRect();
-                const touch = e.touches[0];
-                ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
-                ctx.stroke();
-            };
-            canvas.ontouchend = () => { desenhando = false; };
-        }
-
-        window.abrirModalAssinatura = function(id) {
-            entregaSelecionadaId = id;
-            document.getElementById('modal-assinatura').classList.remove('hidden');
-            setTimeout(initCanvas, 50);
-        }
-
-        window.fecharModalAssinatura = function() {
-            document.getElementById('modal-assinatura').classList.add('hidden');
-            entregaSelecionadaId = null;
-        }
-
-        window.limparCanvas = function() {
-            if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        window.salvarAssinatura = function() {
-            const item = deliveries.find(d => d.id === entregaSelecionadaId);
-            if(item) {
-                item.assinatura = canvas.toDataURL();
-                salvarNoFirebase(item, item.id);
-                fecharModalAssinatura();
-            }
-        }
-
-        window.adicionarFoto = function(id, event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const canvasImg = document.createElement('canvas');
-                        let width = img.width;
-                        let height = img.height;
-                        const maxSize = 800;
-
-                        if (width > height && width > maxSize) {
-                            height *= maxSize / width;
-                            width = maxSize;
-                        } else if (height > maxSize) {
-                            width *= maxSize / height;
-                            height = maxSize;
-                        }
-
-                        canvasImg.width = width;
-                        canvasImg.height = height;
-                        const ctxImg = canvasImg.getContext('2d');
-                        ctxImg.drawImage(img, 0, 0, width, height);
-
-                        const dataUrl = canvasImg.toDataURL('image/jpeg', 0.7);
-                        const item = deliveries.find(d => d.id === id);
-                        if(item) {
-                            item.foto = dataUrl;
-                            salvarNoFirebase(item, item.id);
-                        }
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        window.ampliarImagem = function(url) {
-            document.getElementById('imagem-ampliada').src = url;
-            document.getElementById('modal-imagem').classList.remove('hidden');
-        }
-
-        window.fecharModalImagem = function() {
-            document.getElementById('modal-imagem').classList.add('hidden');
-        }
-
-        function renderDeliveries() {
-            const list = document.getElementById('deliveries-list');
-            if(!list) return;
-            list.innerHTML = '';
-
-            dataSelecionadaFiltro = document.getElementById('filtro-data').value;
-            const motoristaFiltro = document.getElementById('filtro-motorista').value;
-            
-            let entregasFiltradas = deliveries;
-
-            if (dataSelecionadaFiltro) {
-                entregasFiltradas = entregasFiltradas.filter(d => d.dataCriacao === dataSelecionadaFiltro);
-            }
-
-            if (motoristaFiltro) {
-                entregasFiltradas = entregasFiltradas.filter(d => d.motorista === motoristaFiltro);
-            }
-
-            if (bairroSelecionadoFiltro) {
-                entregasFiltradas = entregasFiltradas.filter(d => (d.bairro || '').trim().toUpperCase() === bairroSelecionadoFiltro);
-            }
-
-            atualizarChipsBairros();
-
-            if (entregasFiltradas.length === 0) {
-                list.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">Nenhuma entrega encontrada para os filtros selecionados.</p>`;
-                return;
-            }
-
-            entregasFiltradas.forEach(d => {
-                const card = document.createElement('div');
-                card.className = `bg-white border rounded-xl p-4 shadow-sm relative transition ${d.status === 'Concluída' ? 'border-green-400 bg-green-50/30' : 'border-gray-200'}`;
-                
-                let pecasHtml = '<ul class="list-disc list-inside text-xs text-gray-600 my-2 bg-gray-50 p-2 rounded">';
-                if(d.pecas && d.pecas.length > 0) {
-                    d.pecas.forEach(p => {
-                        pecasHtml += `<li>${p.descricao} - <span class="font-semibold text-gray-800">R$ ${Number(p.valor || 0).toFixed(2)}</span></li>`;
-                    });
-                } else {
-                    pecasHtml += `<li>Peça única - R$ ${Number(d.valor || 0).toFixed(2)}</li>`;
-                }
-                pecasHtml += '</ul>';
-
-                let pagStr = [];
-                if(d.pagamentos?.pix > 0) pagStr.push(`Pix: R$ ${d.pagamentos.pix.toFixed(2)}`);
-                if(d.pagamentos?.credito > 0) pagStr.push(`Créd.: R$ ${d.pagamentos.credito.toFixed(2)}`);
-                if(d.pagamentos?.debito > 0) pagStr.push(`Déb.: R$ ${d.pagamentos.debito.toFixed(2)}`);
-                if(d.pagamentos?.dinheiro > 0) pagStr.push(`Din.: R$ ${d.pagamentos.dinheiro.toFixed(2)}`);
-                let pagTexto = pagStr.length > 0 ? `<span class="text-blue-600 font-normal ml-1">(${pagStr.join(' | ')})</span>` : '';
-
-                let dataExibicao = d.dataCriacao ? d.dataCriacao.split('-').reverse().join('/') : 'Data não reg.';
-                let horaConclTexto = d.horaConclusao ? `<span class="text-xs text-green-700 font-bold ml-2"><i class="fas fa-clock mr-1"></i>Às ${d.horaConclusao}</span>` : '';
-
-                let botaoStatusHtml = '';
-                if (d.status === 'Concluída') {
-                    botaoStatusHtml = `<button onclick="refazerEntrega('${d.id}')" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded shadow flex items-center gap-1"><i class="fas fa-undo mr-1"></i>Refazer</button>`;
-                } else {
-                    botaoStatusHtml = `<button onclick="concluirEntrega('${d.id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded shadow"><i class="fas fa-check mr-1"></i>Concluir</button>`;
-                }
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <div class="flex items-center">
-                                <span class="text-xs font-bold px-2 py-0.5 rounded ${d.status === 'Concluída' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${d.status}</span>
-                                ${horaConclTexto}
-                            </div>
-                            <span class="text-xs text-gray-400 ml-1 font-semibold mt-1 inline-block"><i class="fas fa-calendar-alt mr-1"></i>${dataExibicao}</span>
-                            <h3 class="font-bold text-gray-800 text-sm mt-1"><i class="fas fa-user text-blue-500 mr-1"></i> ${d.cliente} <span class="text-gray-500 font-normal ml-1">(${d.contato || 'Sem tel'})</span></h3>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <span class="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-1 rounded"><i class="fas fa-motorcycle mr-1"></i>${d.motorista}</span>
-                            <button onclick="abrirModalMotorista('${d.id}')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-1.5 py-1 rounded" title="Mudar Motorista"><i class="fas fa-exchange-alt"></i></button>
-                        </div>
-                    </div>
-
-                    <p class="text-xs text-gray-600 mb-1"><i class="fas fa-map-marker-alt text-red-500 mr-1"></i> ${d.rua}, Nº ${d.numero} - <strong class="text-gray-800 uppercase">${d.bairro || 'N/D'}</strong>, ${d.cidade} (CEP: ${d.cep})</p>
-                    
-                    ${pecasHtml}
-
-                    <p class="text-xs font-bold text-gray-700 mb-2">Valor Total: R$ ${Number(d.valor || 0).toFixed(2)} ${pagTexto}</p>
-
-                    <div class="mb-3 bg-amber-50/60 p-2 rounded border border-amber-200">
-                        <label class="block text-[11px] font-bold text-amber-800 mb-1"><i class="fas fa-comment-alt mr-1"></i>Observação do Motorista:</label>
-                        <input type="text" value="${d.observacao || ''}" placeholder="Ex: Deixar com o vizinho, portão fechado..." onblur="salvarObservacao('${d.id}', this)" class="w-full border border-amber-300 bg-white p-1.5 rounded text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-500">
-                    </div>
-
-                    <div class="mb-3 flex flex-wrap items-center gap-3">
-                        ${d.foto ? `<div class="text-center"><span class="block text-[10px] text-gray-400">Foto</span><img src="${d.foto}" class="w-14 h-14 object-cover rounded border shadow-sm cursor-pointer hover:opacity-80 transition" onclick="ampliarImagem('${d.foto}')" title="Clique para ampliar"></div>` : ''}
-                        ${d.assinatura ? `<div class="text-center"><span class="block text-[10px] text-gray-400">Assinatura</span><img src="${d.assinatura}" class="w-24 h-14 object-contain bg-white rounded border shadow-sm cursor-pointer hover:opacity-80 transition" onclick="ampliarImagem('${d.assinatura}')" title="Clique para ampliar"></div>` : ''}
-                        
-                        <div class="flex flex-col gap-1.5 ml-auto">
-                            <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded border flex items-center gap-1 justify-center">
-                                <i class="fas fa-camera"></i> ${d.foto ? 'Trocar Foto' : 'Adicionar Foto'}
-                                <input type="file" accept="image/*" class="hidden" onchange="adicionarFoto('${d.id}', event)">
-                            </label>
-                            <button onclick="abrirModalAssinatura('${d.id}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded border border-indigo-200 flex items-center gap-1 justify-center">
-                                <i class="fas fa-signature"></i> ${d.assinatura ? 'Refazer Assinatura' : 'Assinar Cliente'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100 text-xs">
-                        ${botaoStatusHtml}
-                        
-                        <button onclick="abrirGps('${d.id}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1">
-                            <i class="fas fa-location-arrow"></i> GPS
-                        </button>
-
-                        <button onclick="enviarWhatsApp('${d.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1">
-                            <i class="fab fa-whatsapp"></i> WhatsApp
-                        </button>
-
-                        <button onclick="abrirModalPagamento('${d.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded border border-blue-200 flex items-center gap-1">
-                            <i class="fas fa-wallet"></i> Lançar Pagto
-                        </button>
-
-                        <button onclick="editarEntrega('${d.id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1" title="Editar Dados"><i class="fas fa-edit"></i> Editar</button>
-
-                        <button onclick="excluirEntrega('${d.id}')" class="bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded shadow ml-auto"><i class="fas fa-trash"></i></button>
-                    </div>
-                `;
-                list.appendChild(card);
-            });
-        }
-
-        function updateDashboard() {
-            let totPix = 0, totCredito = 0, totDebito = 0, totDinheiro = 0;
-
-            let entregasParaDashboard = deliveries;
-            const inputFiltroData = document.getElementById('filtro-data');
-            
-            if (inputFiltroData && inputFiltroData.value) {
-                entregasParaDashboard = deliveries.filter(d => d.dataCriacao === inputFiltroData.value);
-            }
-
-            entregasParaDashboard.forEach(d => {
-                if(d.pagamentos) {
-                    totPix += Number(d.pagamentos.pix || 0);
-                    totCredito += Number(d.pagamentos.credito || 0);
-                    totDebito += Number(d.pagamentos.debito || 0);
-                    totDinheiro += Number(d.pagamentos.dinheiro || 0);
-                }
-            });
-
-            const elPix = document.getElementById('total-pix');
-            const elCred = document.getElementById('total-credito');
-            const elDeb = document.getElementById('total-debito');
-            const elDin = document.getElementById('total-dinheiro');
-
-            if(elPix) elPix.innerText = `R$ ${totPix.toFixed(2)}`;
-            if(elCred) elCred.innerText = `R$ ${totCredito.toFixed(2)}`;
-            if(elDeb) elDeb.innerText = `R$ ${totDebito.toFixed(2)}`;
-            if(elDin) elDin.innerText = `R$ ${totDinheiro.toFixed(2)}`;
-        }
-    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f4f6f9; padding: 20px; color: #333; }
+
+        .top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .status-badge { background: #ffc107; padding: 5px 12px; border-radius: 20px; color: #fff; font-size: 0.8rem; font-weight: bold; }
+
+        .container { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .card-section { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card-section h2 { margin-bottom: 15px; font-size: 1.2rem; border-bottom: 2px solid #eee; padding-bottom: 5px; color: #1a252f; }
+
+        .form-row, .filtros-grid, .inputs-pagamento-grid { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 5px; }
+        .form-group.full-width { flex: 100%; }
+
+        label { font-size: 0.85rem; font-weight: bold; color: #555; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.9rem; }
+        input:focus, select:focus { border-color: #007bff; outline: none; }
+
+        .pecas-container { background: #fafafa; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 15px 0; }
+        .pecas-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .peca-row { display: flex; gap: 5px; margin-bottom: 8px; }
+        .peca-desc { flex: 2; }
+        .peca-qtd, .peca-valor { flex: 1; }
+
+        .valor-total-box { margin: 15px 0; font-size: 1.2rem; text-align: right; color: #2c3e50; }
+
+        .form-actions { display: flex; gap: 10px; }
+        button { padding: 10px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { opacity: 0.9; }
+        .btn-primary { background: #007bff; color: #fff; }
+        .btn-secondary { background: #6c757d; color: #fff; }
+        .btn-danger { background: #dc3545; color: #fff; }
+        .btn-remove { background: #dc3545; color: #fff; padding: 0 12px; font-size: 1.2rem; border-radius: 4px; }
+        .btn-small { padding: 6px 12px; font-size: 0.85rem; background: #007bff; color: #fff; border-radius: 4px; }
+
+        .entregas-list { display: flex; flex-direction: column; gap: 10px; }
+        .card-entrega { background: #f8f9fa; border: 1px solid #e9ecef; border-left: 5px solid #007bff; border-radius: 6px; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+
+        .cards-financeiros-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+        .card-financeiro { background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 12px; text-align: center; }
+        .card-financeiro .titulo { font-size: 0.75rem; color: #666; font-weight: bold; display: block; margin-bottom: 5px; }
+        .card-financeiro .valor { font-size: 1.1rem; color: #28a745; font-weight: bold; }
+        .card-financeiro.destaque { background: #e3f2fd; border-color: #90caf9; }
+        .card-financeiro.destaque .valor { color: #0d47a1; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-content h3 { margin-bottom: 15px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans pb-36">
+<body>
 
-    <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold"><i class="fas fa-motorcycle mr-2"></i>App de Entregas - Firebase</h1>
-            <div class="flex items-center gap-2">
-                <button onclick="realizarBackupManual()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs px-2.5 py-1.5 rounded font-semibold flex items-center gap-1 shadow transition" title="Baixar Backup Manual">
-                    <i class="fas fa-download"></i> Backup
-                </button>
-                <span id="sync-status" class="text-xs bg-yellow-500 text-black px-2 py-1 rounded font-semibold">Conectando...</span>
-            </div>
+    <header class="top-header">
+        <h1>App de Entregas - Firebase</h1>
+        <div class="header-actions">
+            <button id="btnBackup" class="btn-secondary">Backup</button>
+            <span id="statusConexao" class="status-badge">Conectando...</span>
         </div>
     </header>
 
-    <main class="container mx-auto p-4 max-w-2xl">
+    <main class="container">
 
-        <section class="bg-white p-5 rounded-xl shadow-md mb-6">
-            <h2 id="form-title" class="text-lg font-bold text-gray-700 mb-4 border-b pb-2"><i class="fas fa-user-plus mr-2 text-blue-500"></i>Cadastrar Nova Entrega</h2>
-            <form id="delivery-form" class="space-y-3">
-                <input type="hidden" id="edit-id">
-                
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600">Data da Entrega</label>
-                    <input type="date" id="data-entrega" required class="w-full border p-2 rounded text-sm bg-blue-50/50 font-semibold text-blue-900 focus:ring-2 focus:ring-blue-400">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600">CEP</label>
-                        <input type="text" id="cep" placeholder="00000-000" maxlength="9" required class="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-blue-400">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600">Número</label>
-                        <input type="text" id="numero" placeholder="Ex: 123" required class="w-full border p-2 rounded text-sm">
+        <section class="card-section">
+            <h2>Cadastrar Nova Entrega</h2>
+            <form id="formEntrega">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dataEntrega">Data da Entrega</label>
+                        <input type="date" id="dataEntrega" required>
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600">Nome da Rua</label>
-                    <input type="text" id="rua" placeholder="Preenchimento automático" required class="w-full border p-2 rounded text-sm bg-gray-50">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600">Bairro (Automático / Maiúsculo)</label>
-                        <input type="text" id="bairro" placeholder="Preenchimento automático" required class="w-full border p-2 rounded text-sm bg-gray-50 uppercase font-semibold">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cep">CEP</label>
+                        <input type="text" id="cep" placeholder="00000-000" maxlength="9">
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600">Cidade / Estado</label>
-                        <input type="text" id="cidade" placeholder="Preenchimento automático" required class="w-full border p-2 rounded text-sm bg-gray-50">
+                    <div class="form-group">
+                        <label for="numero">Número</label>
+                        <input type="text" id="numero" placeholder="Nº">
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600">Cliente (Digite p/ puxar dados)</label>
-                        <input type="text" id="cliente" list="lista-clientes" placeholder="Nome do Cliente" required oninput="verificarAutocompletarCliente()" class="w-full border p-2 rounded text-sm">
-                        <datalist id="lista-clientes"></datalist>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="rua">Nome da Rua</label>
+                        <input type="text" id="rua" placeholder="Rua / Avenida">
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600">Contato (Opcional)</label>
-                        <input type="text" id="contato" placeholder="(00) 00000-0000" class="w-full border p-2 rounded text-sm">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="bairro">Bairro (Automático / Maiúsculo)</label>
+                        <input type="text" id="bairro" placeholder="Bairro">
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600">Motorista</label>
-                        <select id="motorista" required class="w-full border p-2 rounded text-sm bg-white">
+                    <div class="form-group">
+                        <label for="cidadeEstado">Cidade / Estado</label>
+                        <input type="text" id="cidadeEstado" placeholder="Cidade - UF">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cliente">Cliente (Digite p/ puxar dados)</label>
+                        <input type="text" id="cliente" placeholder="Nome do Cliente" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contato">Contato (Opcional)</label>
+                        <input type="tel" id="contato" placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="form-group">
+                        <label for="motorista">Motorista</label>
+                        <select id="motorista" required>
                             <option value="">Selecione...</option>
                             <option value="Carlos">Carlos</option>
                             <option value="Marcelo">Marcelo</option>
@@ -885,158 +128,351 @@
                     </div>
                 </div>
 
-                <div class="border-t pt-3 mt-3">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-bold text-gray-700 uppercase"><i class="fas fa-boxes mr-1 text-blue-500"></i> Peças / Itens da Entrega</label>
-                        <button type="button" onclick="adicionarCampoPeca()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2 py-1 rounded font-semibold"><i class="fas fa-plus mr-1"></i>Adicionar Peça</button>
+                <div class="pecas-container">
+                    <div class="pecas-header">
+                        <h3>Peças / Itens da Entrega</h3>
+                        <button type="button" id="btnAdicionarPeca" class="btn-small">+ Adicionar Peça</button>
                     </div>
-                    <div id="lista-pecas-form" class="space-y-2">
-                        <div class="flex gap-2 item-peca">
-                            <input type="text" placeholder="Nome/Descrição da Peça" class="w-full border p-2 rounded text-sm desc-peca" required>
-                            <input type="number" step="0.01" placeholder="Valor (R$)" class="w-32 border p-2 rounded text-sm valor-peca" required oninput="calcularTotalForm()">
-                        </div>
-                    </div>
+                    <div id="listaPecas"></div>
                 </div>
 
-                <div class="bg-blue-50 p-2.5 rounded border border-blue-200 flex justify-between items-center">
-                    <span class="text-xs font-bold text-blue-800">Valor Total da Entrega:</span>
-                    <span id="valor-total-exibicao" class="text-sm font-bold text-blue-900">R$ 0,00</span>
+                <div class="valor-total-box">
+                    <span>Valor Total da Entrega:</span>
+                    <strong id="valorTotalTexto">R$ 0,00</strong>
                 </div>
 
-                <div class="flex gap-2">
-                    <button type="submit" id="btn-submit" class="w-full bg-blue-600 text-white font-bold p-2.5 rounded hover:bg-blue-700 transition">Salvar Entrega no Firebase</button>
-                    <button type="button" id="btn-cancelar-edicao" onclick="cancelarEdicao()" class="hidden bg-gray-400 text-white font-bold p-2.5 rounded hover:bg-gray-500 transition">Cancelar</button>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Salvar Entrega no Firebase</button>
+                    <button type="reset" class="btn-danger">Cancelar</button>
                 </div>
             </form>
         </section>
 
-        <section class="bg-white p-4 rounded-xl shadow-md mb-6">
-            <h2 class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-filter mr-1 text-blue-500"></i>Filtros de Busca</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
-                <div>
-                    <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Data</label>
-                    <input type="date" id="filtro-data" class="border p-2 rounded text-sm w-full font-semibold text-blue-900 bg-blue-50/30" oninput="renderDeliveries(); updateDashboard();">
+        <section class="card-section">
+            <h2>Filtros de Busca</h2>
+            <div class="filtros-grid">
+                <div class="form-group">
+                    <label for="filtroData">Filtrar por Data</label>
+                    <input type="date" id="filtroData">
                 </div>
-                <div>
-                    <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Motorista</label>
-                    <select id="filtro-motorista" class="border p-2 rounded text-sm w-full bg-white" onchange="renderDeliveries()">
+                <div class="form-group">
+                    <label for="filtroMotorista">Filtrar por Motorista</label>
+                    <select id="filtroMotorista">
                         <option value="">Todos os Motoristas</option>
                         <option value="Carlos">Carlos</option>
                         <option value="Marcelo">Marcelo</option>
                         <option value="Barbosa">Barbosa</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="filtroBairro">Filtrar por Bairro</label>
+                    <input type="text" id="filtroBairro" placeholder="Digite o bairro">
+                </div>
             </div>
-
-            <div class="mb-2">
-                <label class="block text-[11px] font-semibold text-gray-500 mb-1">Filtrar por Bairro <span class="text-gray-400 font-normal">(Coluna com rolagem vertical completa)</span></label>
-                <div id="bairros-scroll-container" class="flex flex-col gap-1.5 max-h-48 overflow-y-auto p-1.5 border rounded-lg bg-gray-50/50 scrollbar-thin"></div>
-            </div>
-
-            <div class="flex justify-end pt-1 border-t">
-                <button onclick="limparFiltros()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-2 rounded font-semibold w-full md:w-auto">Limpar Todos os Filtros</button>
-            </div>
+            <button id="btnLimparFiltros" class="btn-secondary">Limpar Todos os Filtros</button>
         </section>
 
-        <section>
-            <h2 class="text-lg font-bold text-gray-700 mb-4"><i class="fas fa-tasks mr-2 text-blue-500"></i>Entregas Pendentes e Andamento</h2>
-            <div id="deliveries-list" class="space-y-4"></div>
+        <section class="card-section">
+            <h2>Entregas Pendentes e Andamento</h2>
+            <div id="containerEntregas" class="entregas-list"></div>
+        </section>
+
+        <section class="card-section painel-financeiro">
+            <h2>Painel de Pagamentos da Data Selecionada</h2>
+            <div class="cards-financeiros-grid">
+                <div class="card-financeiro">
+                    <span class="titulo">PIX</span>
+                    <span class="valor" id="totalPix">R$ 0,00</span>
+                </div>
+                <div class="card-financeiro">
+                    <span class="titulo">CRÉDITO</span>
+                    <span class="valor" id="totalCredito">R$ 0,00</span>
+                </div>
+                <div class="card-financeiro">
+                    <span class="titulo">DÉBITO</span>
+                    <span class="valor" id="totalDebito">R$ 0,00</span>
+                </div>
+                <div class="card-financeiro">
+                    <span class="titulo">DINHEIRO</span>
+                    <span class="valor" id="totalDinheiro">R$ 0,00</span>
+                </div>
+                <div class="card-financeiro destaque">
+                    <span class="titulo">CONFIRMAR PAGAMENTO</span>
+                    <span class="valor" id="totalConfirmar">R$ 0,00</span>
+                </div>
+            </div>
         </section>
 
     </main>
 
-    <div id="modal-motorista" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-xl p-4 w-full max-w-xs shadow-2xl">
-            <h3 class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-motorcycle text-blue-500 mr-1"></i>Alterar Motorista</h3>
-            <select id="novo-motorista-select" class="w-full border p-2 rounded text-sm mb-4 bg-white">
-                <option value="Carlos">Carlos</option>
-                <option value="Marcelo">Marcelo</option>
-                <option value="Barbosa">Barbosa</option>
-            </select>
-            <div class="flex justify-end gap-2">
-                <button type="button" onclick="fecharModalMotorista()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">Cancelar</button>
-                <button type="button" onclick="salvarNovoMotorista()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-1.5 rounded font-semibold">Salvar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-imagem" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden p-4">
-        <div class="relative max-w-2xl w-full flex flex-col items-center">
-            <button onclick="fecharModalImagem()" class="absolute -top-10 right-0 text-white text-2xl hover:text-gray-300"><i class="fas fa-times"></i></button>
-            <img id="imagem-ampliada" src="" class="max-h-[80vh] max-w-full rounded-lg shadow-2xl object-contain bg-white">
-        </div>
-    </div>
-
-    <div id="modal-assinatura" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-xl p-4 w-full max-w-md shadow-2xl">
-            <h3 class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-signature text-blue-500 mr-1"></i>Assinatura do Cliente</h3>
-            <p class="text-xs text-gray-500 mb-2">Peça para o cliente assinar abaixo:</p>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 overflow-hidden">
-                <canvas id="canvas-assinatura" class="w-full h-44 cursor-crosshair touch-none"></canvas>
-            </div>
-            <div class="flex justify-between mt-3">
-                <button type="button" onclick="limparCanvas()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">Limpar</button>
-                <div class="flex gap-2">
-                    <button type="button" onclick="fecharModalAssinatura()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">Cancelar</button>
-                    <button type="button" onclick="salvarAssinatura()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-1.5 rounded font-semibold">Salvar Assinatura</button>
+    <div id="modalPagamento" class="modal">
+        <div class="modal-content">
+            <h3>Adicionar Pagamentos</h3>
+            <div class="inputs-pagamento-grid">
+                <div class="form-group">
+                    <label for="pagamentoPix">PIX (R$)</label>
+                    <input type="number" id="pagamentoPix" placeholder="0,00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="pagamentoCredito">Crédito (R$)</label>
+                    <input type="number" id="pagamentoCredito" placeholder="0,00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="pagamentoDebito">Débito (R$)</label>
+                    <input type="number" id="pagamentoDebito" placeholder="0,00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="pagamentoDinheiro">Dinheiro (R$)</label>
+                    <input type="number" id="pagamentoDinheiro" placeholder="0,00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="pagamentoConfirmar">Confirmar Pagamento (R$)</label>
+                    <input type="number" id="pagamentoConfirmar" placeholder="0,00" step="0.01" min="0">
                 </div>
             </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" id="btnFecharPagamento">Cancelar</button>
+                <button type="button" class="btn-primary" id="btnConfirmarPagamentos">Confirmar Pagamentos</button>
+            </div>
         </div>
     </div>
 
-    <div id="modal-pagamento" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-xl p-4 w-full max-w-sm shadow-2xl">
-            <h3 class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-wallet text-green-500 mr-1"></i>Adicionar Pagamentos</h3>
-            <p id="info-pag-total" class="text-xs text-gray-600 mb-3 font-semibold"></p>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // COLOQUE SUAS CHAVES DO FIREBASE AQUI
+        const firebaseConfig = {
+             apiKey: "AIzaSyCuFiZ4H9u3-od3lVXy2BXLiPHmnQRw1Lw",
+  authDomain: "dl-auto-33f62.firebaseapp.com",
+  databaseURL: "https://dl-auto-33f62-default-rtdb.firebaseio.com",
+  projectId: "dl-auto-33f62",
+  storageBucket: "dl-auto-33f62.firebasestorage.app",
+  messagingSenderId: "81729132461",
+  appId: "1:81729132461:web:35c1579e8b3d4f91863324"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let entregasLocais = [];
+        let entregaAtualId = null;
+
+        // ELEMENTOS DO DOM
+        const formEntrega = document.getElementById('formEntrega');
+        const listaPecas = document.getElementById('listaPecas');
+        const btnAdicionarPeca = document.getElementById('btnAdicionarPeca');
+        const valorTotalTexto = document.getElementById('valorTotalTexto');
+        const containerEntregas = document.getElementById('containerEntregas');
+        const statusConexao = document.getElementById('statusConexao');
+
+        const modalPagamento = document.getElementById('modalPagamento');
+        const btnFecharPagamento = document.getElementById('btnFecharPagamento');
+        const btnConfirmarPagamentos = document.getElementById('btnConfirmarPagamentos');
+
+        // CARREGAMENTO INICIAL
+        document.addEventListener('DOMContentLoaded', () => {
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('dataEntrega').value = hoje;
+            document.getElementById('filtroData').value = hoje;
             
-            <div class="space-y-2 text-xs">
-                <div>
-                    <label class="block text-gray-600 font-bold">PIX (R$)</label>
-                    <input type="number" step="0.01" id="pag-pix" class="w-full border p-2 rounded" placeholder="0.00">
-                </div>
-                <div>
-                    <label class="block text-gray-600 font-bold">Crédito (R$)</label>
-                    <input type="number" step="0.01" id="pag-credito" class="w-full border p-2 rounded" placeholder="0.00">
-                </div>
-                <div>
-                    <label class="block text-gray-600 font-bold">Débito (R$)</label>
-                    <input type="number" step="0.01" id="pag-debito" class="w-full border p-2 rounded" placeholder="0.00">
-                </div>
-                <div>
-                    <label class="block text-gray-600 font-bold">Dinheiro (R$)</label>
-                    <input type="number" step="0.01" id="pag-dinheiro" class="w-full border p-2 rounded" placeholder="0.00">
-                </div>
-            </div>
+            ouvirEntregas();
+            adicionarLinhaPeca();
+        });
 
-            <div class="flex justify-end gap-2 mt-4">
-                <button type="button" onclick="fecharModalPagamento()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 text-xs px-3 py-1.5 rounded font-semibold">Cancelar</button>
-                <button type="button" onclick="salvarMultiplosPagamentos()" class="bg-green-600 hover:bg-green-700 text-white text-xs px-4 py-1.5 rounded font-semibold">Confirmar Pagamentos</button>
-            </div>
-        </div>
-    </div>
+        // PEÇAS
+        btnAdicionarPeca.addEventListener('click', () => adicionarLinhaPeca());
 
-    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 z-40">
-        <div class="container mx-auto max-w-2xl">
-            <h3 class="text-xs font-bold text-gray-500 uppercase mb-2 text-center">Painel de Pagamentos da Data Selecionada</h3>
-            <div class="grid grid-cols-4 gap-2 text-center">
-                <div class="bg-green-50 border border-green-200 p-1.5 rounded">
-                    <span class="block text-[10px] text-gray-500 font-bold">PIX</span>
-                    <span id="total-pix" class="text-xs font-bold text-green-700">R$ 0,00</span>
-                </div>
-                <div class="bg-blue-50 border border-blue-200 p-1.5 rounded">
-                    <span class="block text-[10px] text-gray-500 font-bold">CRÉDITO</span>
-                    <span id="total-credito" class="text-xs font-bold text-blue-700">R$ 0,00</span>
-                </div>
-                <div class="bg-yellow-50 border border-yellow-200 p-1.5 rounded">
-                    <span class="block text-[10px] text-gray-500 font-bold">DÉBITO</span>
-                    <span id="total-debito" class="text-xs font-bold text-yellow-700">R$ 0,00</span>
-                </div>
-                <div class="bg-purple-50 border border-purple-200 p-1.5 rounded">
-                    <span class="block text-[10px] text-gray-500 font-bold">DINHEIRO</span>
-                    <span id="total-dinheiro" class="text-xs font-bold text-purple-700">R$ 0,00</span>
-                </div>
-            </div>
-        </div>
-    </footer>
+        function adicionarLinhaPeca() {
+            const div = document.createElement('div');
+            div.className = 'peca-row';
+            div.innerHTML = `
+                <input type="text" placeholder="Descrição do Item" class="peca-desc" required>
+                <input type="number" placeholder="Qtd" class="peca-qtd" value="1" min="1">
+                <input type="number" placeholder="Valor Unit." class="peca-valor" step="0.01" min="0">
+                <button type="button" class="btn-remove">&times;</button>
+            `;
+            div.querySelector('.btn-remove').onclick = () => { div.remove(); calcularTotal(); };
+            div.querySelectorAll('input').forEach(i => i.addEventListener('input', calcularTotal));
+            listaPecas.appendChild(div);
+        }
+
+        function calcularTotal() {
+            let total = 0;
+            document.querySelectorAll('.peca-row').forEach(row => {
+                const qtd = parseFloat(row.querySelector('.peca-qtd').value) || 0;
+                const val = parseFloat(row.querySelector('.peca-valor').value) || 0;
+                total += qtd * val;
+            });
+            valorTotalTexto.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            return total;
+        }
+
+        // SALVAR NO FIREBASE
+        formEntrega.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const pecas = [];
+            document.querySelectorAll('.peca-row').forEach(row => {
+                pecas.push({
+                    descricao: row.querySelector('.peca-desc').value,
+                    qtd: Number(row.querySelector('.peca-qtd').value),
+                    valor: Number(row.querySelector('.peca-valor').value)
+                });
+            });
+
+            const entregaData = {
+                data: document.getElementById('dataEntrega').value,
+                cep: document.getElementById('cep').value,
+                numero: document.getElementById('numero').value,
+                rua: document.getElementById('rua').value,
+                bairro: document.getElementById('bairro').value.toUpperCase(),
+                cidadeEstado: document.getElementById('cidadeEstado').value,
+                cliente: document.getElementById('cliente').value,
+                contato: document.getElementById('contato').value,
+                motorista: document.getElementById('motorista').value,
+                pecas: pecas,
+                valorTotal: calcularTotal(),
+                status: 'Pendente',
+                pagamentos: { pix: 0, credito: 0, debito: 0, dinheiro: 0, confirmar: 0 }
+            };
+
+            try {
+                await addDoc(collection(db, "entregas"), entregaData);
+                alert("Entrega cadastrada com sucesso!");
+                formEntrega.reset();
+                listaPecas.innerHTML = '';
+                adicionarLinhaPeca();
+                calcularTotal();
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao salvar entrega.");
+            }
+        });
+
+        // ESCUTAR BANCO EM TEMPO REAL
+        function ouvirEntregas() {
+            onSnapshot(collection(db, "entregas"), (snapshot) => {
+                statusConexao.textContent = "Conectado";
+                statusConexao.style.background = "#28a745";
+                
+                entregasLocais = [];
+                snapshot.forEach(doc => {
+                    entregasLocais.push({ id: doc.id, ...doc.data() });
+                });
+                
+                renderizarEntregas();
+                atualizarPainelFinanceiro();
+            }, (error) => {
+                statusConexao.textContent = "Erro Conexão";
+                statusConexao.style.background = "#dc3545";
+            });
+        }
+
+        // RENDERIZAR ENTREGAS
+        function renderizarEntregas() {
+            containerEntregas.innerHTML = '';
+            const fData = document.getElementById('filtroData').value;
+            const fMot = document.getElementById('filtroMotorista').value;
+            const fBairro = document.getElementById('filtroBairro').value.toLowerCase();
+
+            const filtradas = entregasLocais.filter(e => {
+                const mData = !fData || e.data === fData;
+                const mMot = !fMot || e.motorista === fMot;
+                const mBairro = !fBairro || (e.bairro && e.bairro.toLowerCase().includes(fBairro));
+                return mData && mMot && mBairro;
+            });
+
+            filtradas.forEach(e => {
+                const div = document.createElement('div');
+                div.className = 'card-entrega';
+                div.innerHTML = `
+                    <div class="card-body">
+                        <h3>${e.cliente}</h3>
+                        <p><strong>Endereço:</strong> ${e.rua}, Nº ${e.numero} - ${e.bairro}</p>
+                        <p><strong>Motorista:</strong> ${e.motorista}</p>
+                        <p><strong>Valor:</strong> R$ ${(e.valorTotal || 0).toFixed(2)}</p>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-small" onclick="abrirModalPagamento('${e.id}')">Adicionar Pagamentos</button>
+                    </div>
+                `;
+                containerEntregas.appendChild(div);
+            });
+        }
+
+        document.getElementById('filtroData').addEventListener('change', () => { renderizarEntregas(); atualizarPainelFinanceiro(); });
+        document.getElementById('filtroMotorista').addEventListener('change', renderizarEntregas);
+        document.getElementById('filtroBairro').addEventListener('input', renderizarEntregas);
+        document.getElementById('btnLimparFiltros').addEventListener('click', () => {
+            document.getElementById('filtroMotorista').value = '';
+            document.getElementById('filtroBairro').value = '';
+            renderizarEntregas();
+        });
+
+        // ABRIR E CONFIRMAR PAGAMENTOS
+        window.abrirModalPagamento = (id) => {
+            entregaAtualId = id;
+            const item = entregasLocais.find(e => e.id === id);
+            const p = item.pagamentos || { pix: 0, credito: 0, debito: 0, dinheiro: 0, confirmar: 0 };
+
+            document.getElementById('pagamentoPix').value = p.pix || '';
+            document.getElementById('pagamentoCredito').value = p.credito || '';
+            document.getElementById('pagamentoDebito').value = p.debito || '';
+            document.getElementById('pagamentoDinheiro').value = p.dinheiro || '';
+            document.getElementById('pagamentoConfirmar').value = p.confirmar || '';
+
+            modalPagamento.style.display = 'flex';
+        };
+
+        btnFecharPagamento.onclick = () => modalPagamento.style.display = 'none';
+
+        btnConfirmarPagamentos.onclick = async () => {
+            if (!entregaAtualId) return;
+
+            const pagamentosAtualizados = {
+                pix: Number(document.getElementById('pagamentoPix').value) || 0,
+                credito: Number(document.getElementById('pagamentoCredito').value) || 0,
+                debito: Number(document.getElementById('pagamentoDebito').value) || 0,
+                dinheiro: Number(document.getElementById('pagamentoDinheiro').value) || 0,
+                confirmar: Number(document.getElementById('pagamentoConfirmar').value) || 0
+            };
+
+            try {
+                await updateDoc(doc(db, "entregas", entregaAtualId), {
+                    pagamentos: pagamentosAtualizados
+                });
+                modalPagamento.style.display = 'none';
+                alert("Pagamentos atualizados!");
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao salvar pagamentos.");
+            }
+        };
+
+        // CALCULAR PAINEL FINANCEIRO
+        function atualizarPainelFinanceiro() {
+            const fData = document.getElementById('filtroData').value;
+            const daData = entregasLocais.filter(e => e.data === fData);
+
+            let totPix = 0, totCred = 0, totDeb = 0, totDin = 0, totConf = 0;
+
+            daData.forEach(e => {
+                if (e.pagamentos) {
+                    totPix += e.pagamentos.pix || 0;
+                    totCred += e.pagamentos.credito || 0;
+                    totDeb += e.pagamentos.debito || 0;
+                    totDin += e.pagamentos.dinheiro || 0;
+                    totConf += e.pagamentos.confirmar || 0;
+                }
+            });
+
+            document.getElementById('totalPix').textContent = `R$ ${totPix.toFixed(2).replace('.', ',')}`;
+            document.getElementById('totalCredito').textContent = `R$ ${totCred.toFixed(2).replace('.', ',')}`;
+            document.getElementById('totalDebito').textContent = `R$ ${totDeb.toFixed(2).replace('.', ',')}`;
+            document.getElementById('totalDinheiro').textContent = `R$ ${totDin.toFixed(2).replace('.', ',')}`;
+            document.getElementById('totalConfirmar').textContent = `R$ ${totConf.toFixed(2).replace('.', ',')}`;
+        }
+    </script>
 </body>
 </html>
