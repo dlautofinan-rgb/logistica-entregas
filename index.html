@@ -80,6 +80,7 @@
                     const novaEntregaRef = push(entregasRef);
                     await set(novaEntregaRef, entregaObj);
                 }
+                updateDashboard();
             } catch (error) {
                 console.error("Erro ao salvar no Firebase:", error);
                 alert("Erro ao salvar dados na nuvem. Verifique sua conexão.");
@@ -91,6 +92,7 @@
                 try {
                     const entregaRef = ref(db, 'entregas/' + id);
                     await remove(entregaRef);
+                    updateDashboard();
                 } catch (error) {
                     console.error("Erro ao excluir:", error);
                 }
@@ -399,7 +401,6 @@
             }
         }
 
-        // --- COLUNA DE ROLAGEM VERTICAL COMPLETA PARA OS BAIRROS ---
         function atualizarChipsBairros() {
             const container = document.getElementById('bairros-scroll-container');
             if (!container) return;
@@ -413,7 +414,6 @@
 
             const bairrosUnicos = [...new Set(entregasParaBairros.map(d => (d.bairro || '').trim().toUpperCase()))].filter(b => b !== '').sort();
 
-            // Botão "Todos os Bairros" fixo no topo da lista de rolagem
             const btnTodos = document.createElement('div');
             btnTodos.className = `flex items-center justify-between p-2.5 rounded-lg text-xs font-bold transition border cursor-pointer ${bairroSelecionadoFiltro === '' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`;
             btnTodos.innerHTML = `
@@ -463,6 +463,7 @@
             bairroSelecionadoFiltro = '';
             atualizarChipsBairros();
             renderDeliveries();
+            updateDashboard();
         }
 
         window.enviarWhatsApp = function(id) {
@@ -542,6 +543,7 @@
                 };
                 salvarNoFirebase(item, item.id);
                 fecharModalPagamento();
+                updateDashboard();
             }
         }
 
@@ -782,6 +784,8 @@
             let totPix = 0, totCredito = 0, totDebito = 0, totDinheiro = 0;
 
             let entregasParaDashboard = deliveries;
+            dataSelecionadaFiltro = document.getElementById('filtro-data').value;
+            
             if (dataSelecionadaFiltro) {
                 entregasParaDashboard = deliveries.filter(d => d.dataCriacao === dataSelecionadaFiltro);
             }
