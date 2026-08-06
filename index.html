@@ -702,6 +702,7 @@
                 if(d.pagamentos?.credito > 0) pagStr.push(`Créd.: R$ ${d.pagamentos.credito.toFixed(2)}`);
                 if(d.pagamentos?.debito > 0) pagStr.push(`Déb.: R$ ${d.pagamentos.debito.toFixed(2)}`);
                 if(d.pagamentos?.dinheiro > 0) pagStr.push(`Din.: R$ ${d.pagamentos.dinheiro.toFixed(2)}`);
+                if(d.pagamentos?.confirmar pag > 0) pagStr.push(`Din.: R$ ${d.pagamentos.confirmar.toFixed(2)}`);
                 let pagTexto = pagStr.length > 0 ? `<span class="text-blue-600 font-normal ml-1">(${pagStr.join(' | ')})</span>` : '';
 
                 let dataExibicao = d.dataCriacao ? d.dataCriacao.split('-').reverse().join('/') : 'Data não reg.';
