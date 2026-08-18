@@ -428,7 +428,7 @@
                         valor: valorTotal,
                         status: 'Pendente',
                         horaConclusao: null,
-                        pagamentos: { pix: 0, credito: 0, debito: 0, dinheiro: 0 },
+                        pagamentos: { pix: 0, credito: 0, debito: 0, dinheiro: 0, confirmar: 0, creditoParcelado: 0, creditoVista: 0 },
                         foto: null,
                         assinatura: null,
                         observacao: ''
@@ -684,6 +684,9 @@
                 document.getElementById('pag-credito').value = item.pagamentos?.credito || '';
                 document.getElementById('pag-debito').value = item.pagamentos?.debito || '';
                 document.getElementById('pag-dinheiro').value = item.pagamentos?.dinheiro || '';
+                document.getElementById('pag-confirmar').value = item.pagamentos?.confirmar || '';
+                document.getElementById('pag-credito-parcelado').value = item.pagamentos?.creditoParcelado || '';
+                document.getElementById('pag-credito-vista').value = item.pagamentos?.creditoVista || '';
                 document.getElementById('modal-pagamento').classList.remove('hidden');
             }
         }
@@ -700,7 +703,10 @@
                     pix: parseFloat(document.getElementById('pag-pix').value) || 0,
                     credito: parseFloat(document.getElementById('pag-credito').value) || 0,
                     debito: parseFloat(document.getElementById('pag-debito').value) || 0,
-                    dinheiro: parseFloat(document.getElementById('pag-dinheiro').value) || 0
+                    dinheiro: parseFloat(document.getElementById('pag-dinheiro').value) || 0,
+                    confirmar: parseFloat(document.getElementById('pag-confirmar').value) || 0,
+                    creditoParcelado: parseFloat(document.getElementById('pag-credito-parcelado').value) || 0,
+                    creditoVista: parseFloat(document.getElementById('pag-credito-vista').value) || 0
                 };
                 salvarNoFirebase(item, item.id);
                 fecharModalPagamento();
@@ -861,8 +867,11 @@
                 let pagStr = [];
                 if(d.pagamentos?.pix > 0) pagStr.push(`Pix: R$ ${d.pagamentos.pix.toFixed(2)}`);
                 if(d.pagamentos?.credito > 0) pagStr.push(`Créd.: R$ ${d.pagamentos.credito.toFixed(2)}`);
+                if(d.pagamentos?.creditoVista > 0) pagStr.push(`Créd. à Vista: R$ ${d.pagamentos.creditoVista.toFixed(2)}`);
+                if(d.pagamentos?.creditoParcelado > 0) pagStr.push(`Créd. Parc.: R$ ${d.pagamentos.creditoParcelado.toFixed(2)}`);
                 if(d.pagamentos?.debito > 0) pagStr.push(`Déb.: R$ ${d.pagamentos.debito.toFixed(2)}`);
                 if(d.pagamentos?.dinheiro > 0) pagStr.push(`Din.: R$ ${d.pagamentos.dinheiro.toFixed(2)}`);
+                if(d.pagamentos?.confirmar > 0) pagStr.push(`Conf. Pagto: R$ ${d.pagamentos.confirmar.toFixed(2)}`);
                 let pagTexto = pagStr.length > 0 ? `<span class="text-blue-600 font-normal ml-1">(${pagStr.join(' | ')})</span>` : '';
 
                 let dataExibicao = d.dataCriacao ? d.dataCriacao.split('-').reverse().join('/') : 'Data não reg.';
@@ -946,6 +955,7 @@
 
         function updateDashboard() {
             let totPix = 0, totCredito = 0, totDebito = 0, totDinheiro = 0;
+            let totConfirmar = 0, totCreditoParcelado = 0, totCreditoVista = 0;
 
             let entregasParaDashboard = deliveries;
             const inputFiltroData = document.getElementById('filtro-data');
@@ -960,6 +970,9 @@
                     totCredito += Number(d.pagamentos.credito || 0);
                     totDebito += Number(d.pagamentos.debito || 0);
                     totDinheiro += Number(d.pagamentos.dinheiro || 0);
+                    totConfirmar += Number(d.pagamentos.confirmar || 0);
+                    totCreditoParcelado += Number(d.pagamentos.creditoParcelado || 0);
+                    totCreditoVista += Number(d.pagamentos.creditoVista || 0);
                 }
             });
 
@@ -967,15 +980,21 @@
             const elCred = document.getElementById('total-credito');
             const elDeb = document.getElementById('total-debito');
             const elDin = document.getElementById('total-dinheiro');
+            const elConf = document.getElementById('total-confirmar');
+            const elCredParc = document.getElementById('total-credito-parcelado');
+            const elCredVista = document.getElementById('total-credito-vista');
 
             if(elPix) elPix.innerText = `R$ ${totPix.toFixed(2)}`;
             if(elCred) elCred.innerText = `R$ ${totCredito.toFixed(2)}`;
             if(elDeb) elDeb.innerText = `R$ ${totDebito.toFixed(2)}`;
             if(elDin) elDin.innerText = `R$ ${totDinheiro.toFixed(2)}`;
+            if(elConf) elConf.innerText = `R$ ${totConfirmar.toFixed(2)}`;
+            if(elCredParc) elCredParc.innerText = `R$ ${totCreditoParcelado.toFixed(2)}`;
+            if(elCredVista) elCredVista.innerText = `R$ ${totCreditoVista.toFixed(2)}`;
         }
     </script>
 </head>
-<body class="bg-gray-100 font-sans pb-36">
+<body class="bg-gray-100 font-sans pb-44">
 
     <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
@@ -1173,17 +1192,29 @@
     </div>
 
     <div id="modal-pagamento" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-xl p-4 w-full max-w-sm shadow-2xl">
+        <div class="bg-white rounded-xl p-4 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="text-sm font-bold text-gray-700 mb-2"><i class="fas fa-wallet text-green-500 mr-1"></i>Adicionar Pagamentos</h3>
             <p id="info-pag-total" class="text-xs text-gray-600 mb-3 font-semibold"></p>
             
             <div class="space-y-2 text-xs">
                 <div>
+                    <label class="block text-gray-600 font-bold">Confirmar Pagamento (R$)</label>
+                    <input type="number" step="0.01" id="pag-confirmar" class="w-full border p-2 rounded" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-gray-600 font-bold">Crédito à Vista (R$)</label>
+                    <input type="number" step="0.01" id="pag-credito-vista" class="w-full border p-2 rounded" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-gray-600 font-bold">Crédito Parcelado (R$)</label>
+                    <input type="number" step="0.01" id="pag-credito-parcelado" class="w-full border p-2 rounded" placeholder="0.00">
+                </div>
+                <div>
                     <label class="block text-gray-600 font-bold">PIX (R$)</label>
                     <input type="number" step="0.01" id="pag-pix" class="w-full border p-2 rounded" placeholder="0.00">
                 </div>
                 <div>
-                    <label class="block text-gray-600 font-bold">Crédito (R$)</label>
+                    <label class="block text-gray-600 font-bold">Crédito Geral (R$)</label>
                     <input type="number" step="0.01" id="pag-credito" class="w-full border p-2 rounded" placeholder="0.00">
                 </div>
                 <div>
@@ -1206,22 +1237,34 @@
     <footer class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 z-40">
         <div class="container mx-auto max-w-2xl">
             <h3 class="text-xs font-bold text-gray-500 uppercase mb-2 text-center">Painel de Pagamentos da Data Selecionada</h3>
-            <div class="grid grid-cols-4 gap-2 text-center">
-                <div class="bg-green-50 border border-green-200 p-1.5 rounded">
-                    <span class="block text-[10px] text-gray-500 font-bold">PIX</span>
-                    <span id="total-pix" class="text-xs font-bold text-green-700">R$ 0,00</span>
+            <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5 text-center">
+                <div class="bg-teal-50 border border-teal-200 p-1 rounded">
+                    <span class="block text-[9px] text-gray-500 font-bold truncate">CONFIRMAR</span>
+                    <span id="total-confirmar" class="text-[11px] font-bold text-teal-700">R$ 0,00</span>
                 </div>
-                <div class="bg-blue-50 border border-blue-200 p-1.5 rounded">
-                    <span class="block text-[10px] text-gray-500 font-bold">CRÉDITO</span>
-                    <span id="total-credito" class="text-xs font-bold text-blue-700">R$ 0,00</span>
+                <div class="bg-cyan-50 border border-cyan-200 p-1 rounded">
+                    <span class="block text-[9px] text-gray-500 font-bold truncate">CRÉD. VISTA</span>
+                    <span id="total-credito-vista" class="text-[11px] font-bold text-cyan-700">R$ 0,00</span>
                 </div>
-                <div class="bg-yellow-50 border border-yellow-200 p-1.5 rounded">
-                    <span class="block text-[10px] text-gray-500 font-bold">DÉBITO</span>
-                    <span id="total-debito" class="text-xs font-bold text-yellow-700">R$ 0,00</span>
+                <div class="bg-indigo-50 border border-indigo-200 p-1 rounded">
+                    <span class="block text-[9px] text-gray-500 font-bold truncate">CRÉD. PARC.</span>
+                    <span id="total-credito-parcelado" class="text-[11px] font-bold text-indigo-700">R$ 0,00</span>
                 </div>
-                <div class="bg-purple-50 border border-purple-200 p-1.5 rounded">
-                    <span class="block text-[10px] text-gray-500 font-bold">DINHEIRO</span>
-                    <span id="total-dinheiro" class="text-xs font-bold text-purple-700">R$ 0,00</span>
+                <div class="bg-green-50 border border-green-200 p-1 rounded">
+                    <span class="block text-[9px] text-gray-500 font-bold">PIX</span>
+                    <span id="total-pix" class="text-[11px] font-bold text-green-700">R$ 0,00</span>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 p-1 rounded">
+                    <span class="block text-[9px] text-gray-500 font-bold">CRÉDITO</span>
+                    <span id="total-credito" class="text-[11px] font-bold text-blue-700">R$ 0,00</span>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 p-1 rounded">
+                    <span class="block text-[9px] text-gray-500 font-bold">DÉBITO</span>
+                    <span id="total-debito" class="text-[11px] font-bold text-yellow-700">R$ 0,00</span>
+                </div>
+                <div class="bg-purple-50 border border-purple-200 p-1 rounded">
+                    <span class="block text-[9px] text-gray-500 font-bold">DINHEIRO</span>
+                    <span id="total-dinheiro" class="text-[11px] font-bold text-purple-700">R$ 0,00</span>
                 </div>
             </div>
         </div>
