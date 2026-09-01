@@ -28,77 +28,7 @@
         let entregaSelecionadaId = null;
         let bairroSelecionadoFiltro = '';
         let dataSelecionadaFiltro = '';
-
-        // --- LÓGICA DE GERENCIAMENTO OFFLINE ---
-        function atualizarIndicadorStatus(status, corBg) {
-            const statusBadge = document.getElementById('sync-status');
-            if (statusBadge) {
-                statusBadge.innerText = status;
-                statusBadge.className = `text-xs text-white px-2 py-1 rounded font-semibold ${corBg}`;
-            }
-        }
-
-        function carregarEntregasLocais() {
-            const salvas = localStorage.getItem('deliveries_cache_local');
-            if (salvas) {
-                try {
-                    deliveries = JSON.parse(salvas);
-                } catch(e) {
-                    console.error("Erro ao ler cache local:", e);
-                }
-            }
-        }
-
-        function salvarEntregasLocais() {
-            localStorage.setItem('deliveries_cache_local', JSON.stringify(deliveries));
-        }
-
-        function adicionarFilaPendencias(acao, payload) {
-            const fila = JSON.parse(localStorage.getItem('fila_pendente_offline') || '[]');
-            fila.push({ acao, payload, timestamp: Date.now() });
-            localStorage.setItem('fila_pendente_offline', JSON.stringify(fila));
-        }
-
-        async function sincronizarPendencias() {
-            const fila = JSON.parse(localStorage.getItem('fila_pendente_offline') || '[]');
-            if (fila.length === 0) return;
-
-            atualizarIndicadorStatus('Sincronizando...', 'bg-blue-500');
-
-            for (const item of fila) {
-                try {
-                    if (item.acao === 'salvar') {
-                        const { entregaObj, editId } = item.payload;
-                        if (editId) {
-                            const entregaRef = ref(db, 'entregas/' + editId);
-                            const snapshot = await get(entregaRef);
-                            let dadosExistentes = snapshot.exists() ? snapshot.val() : {};
-                            await set(entregaRef, { ...dadosExistentes, ...entregaObj });
-                        } else {
-                            const novaEntregaRef = push(ref(db, 'entregas'));
-                            await set(novaEntregaRef, entregaObj);
-                        }
-                    } else if (item.acao === 'excluir') {
-                        const { id } = item.payload;
-                        await remove(ref(db, 'entregas/' + id));
-                    }
-                } catch (e) {
-                    console.error("Falha ao sincronizar item da fila:", e);
-                }
-            }
-
-            localStorage.removeItem('fila_pendente_offline');
-            atualizarIndicadorStatus('Online (Firebase)', 'bg-green-500');
-        }
-
-        window.addEventListener('online', () => {
-            atualizarIndicadorStatus('Online (Firebase)', 'bg-green-500');
-            sincronizarPendencias();
-        });
-
-        window.addEventListener('offline', () => {
-            atualizarIndicadorStatus('Offline (Modo Local)', 'bg-orange-500');
-        });
+        const geoCache = {}; // Cache de coordenadas por CEP
 
         window.addEventListener('DOMContentLoaded', () => {
             const hoje = new Date().toISOString().split('T')[0];
@@ -107,17 +37,11 @@
             dataSelecionadaFiltro = hoje;
             document.getElementById('filtro-data').value = hoje;
             
-            carregarEntregasLocais();
-            renderDeliveries();
-            updateDashboard();
+            const statusBadge = document.getElementById('sync-status');
+            statusBadge.innerText = 'Online (Firebase)';
+            statusBadge.className = 'text-xs bg-green-500 text-white px-2 py-1 rounded font-semibold';
 
-            if (navigator.onLine) {
-                atualizarIndicadorStatus('Online (Firebase)', 'bg-green-500');
-                sincronizarPendencias();
-            } else {
-                atualizarIndicadorStatus('Offline (Modo Local)', 'bg-orange-500');
-            }
-
+            // Carregar CEP de partida salvo
             const cepPartidaSalvo = localStorage.getItem('cep_partida_fixo');
             if (cepPartidaSalvo) {
                 document.getElementById('cep-partida').value = cepPartidaSalvo;
@@ -126,83 +50,59 @@
 
             const entregasRef = ref(db, 'entregas');
             onValue(entregasRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
+                const data = snapshot.val();
+                if (data) {
                     deliveries = Object.keys(data).map(key => ({
                         id: key,
                         ...data[key]
                     }));
-                    salvarEntregasLocais();
+                } else {
+                    deliveries = [];
                 }
                 atualizarChipsBairros();
                 atualizarDicasClientes();
                 renderDeliveries();
                 updateDashboard();
-            }, (error) => {
-                console.warn("Conexão instável ou offline no momento:", error);
-                atualizarIndicadorStatus('Offline (Modo Local)', 'bg-orange-500');
             });
 
             iniciarVerificadorBackupAutomatico();
         });
 
         window.salvarNoFirebase = async function(entregaObj, editId = null) {
-            // Atualização Otimista no DOM/State Local
-            if (editId) {
-                const index = deliveries.findIndex(d => d.id === editId);
-                if (index !== -1) {
-                    deliveries[index] = { ...deliveries[index], ...entregaObj };
-                }
-            } else {
-                const tempId = 'temp_' + Date.now();
-                deliveries.push({ id: tempId, ...entregaObj });
-            }
-            
-            salvarEntregasLocais();
-            renderDeliveries();
-            updateDashboard();
-
-            if (!navigator.onLine) {
-                adicionarFilaPendencias('salvar', { entregaObj, editId });
-                alert("Modo Offline: Dados salvos localmente! Eles serão sincronizados com a nuvem quando a conexão retornar.");
-                return;
-            }
-
             try {
                 if (editId) {
                     const entregaRef = ref(db, 'entregas/' + editId);
                     const snapshot = await get(entregaRef);
-                    let dadosExistentes = snapshot.exists() ? snapshot.val() : {};
-                    await set(entregaRef, { ...dadosExistentes, ...entregaObj });
+                    let dadosExistentes = {};
+                    if (snapshot.exists()) {
+                        dadosExistentes = snapshot.val();
+                    }
+                    
+                    const entregaMesclada = {
+                        ...dadosExistentes,
+                        ...entregaObj
+                    };
+                    await set(entregaRef, entregaMesclada);
                 } else {
-                    const novaEntregaRef = push(ref(db, 'entregas'));
+                    const entregasRef = ref(db, 'entregas');
+                    const novaEntregaRef = push(entregasRef);
                     await set(novaEntregaRef, entregaObj);
                 }
+                updateDashboard();
             } catch (error) {
-                console.error("Erro ao salvar no Firebase, gravando na fila local:", error);
-                adicionarFilaPendencias('salvar', { entregaObj, editId });
-                atualizarIndicadorStatus('Offline (Modo Local)', 'bg-orange-500');
+                console.error("Erro ao salvar no Firebase:", error);
+                alert("Erro ao salvar dados na nuvem. Verifique sua conexão.");
             }
         };
 
         window.excluirEntregaFirebase = async function(id) {
             if(confirm('Deseja excluir esta entrega?')) {
-                deliveries = deliveries.filter(d => d.id !== id);
-                salvarEntregasLocais();
-                renderDeliveries();
-                updateDashboard();
-
-                if (!navigator.onLine) {
-                    adicionarFilaPendencias('excluir', { id });
-                    return;
-                }
-
                 try {
                     const entregaRef = ref(db, 'entregas/' + id);
                     await remove(entregaRef);
+                    updateDashboard();
                 } catch (error) {
-                    console.error("Erro ao excluir no Firebase, armazenando pendência:", error);
-                    adicionarFilaPendencias('excluir', { id });
+                    console.error("Erro ao excluir:", error);
                 }
             }
         };
@@ -257,6 +157,7 @@
             }, 60000);
         }
 
+        // --- PONTO DE PARTIDA E OTIMIZAÇÃO DE ROTA ---
         window.salvarCepPartida = function() {
             const cepInput = document.getElementById('cep-partida').value.replace(/\D/g, '');
             if (cepInput.length === 8) {
@@ -282,51 +183,125 @@
             }
         }
 
-        window.otimizarRota = function() {
-            const cepPartidaStr = document.getElementById('cep-partida').value.replace(/\D/g, '');
-            if (!cepPartidaStr || cepPartidaStr.length !== 8) {
+        async function obterCoordenadasPorCep(cep) {
+            const cepLimp = cep ? cep.replace(/\D/g, '') : '';
+            if (!cepLimp) return null;
+            if (geoCache[cepLimp]) return geoCache[cepLimp];
+
+            try {
+                const resViaCep = await fetch(`https://viacep.com.br/ws/${cepLimp}/json/`);
+                const dataViaCep = await resViaCep.json();
+                if (dataViaCep.erro) return null;
+
+                const query = encodeURIComponent(`${dataViaCep.logradouro}, ${dataViaCep.bairro}, ${dataViaCep.localidade}, Brasil`);
+                const resGeo = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+                const dataGeo = await resGeo.json();
+
+                if (dataGeo && dataGeo.length > 0) {
+                    const coords = { lat: parseFloat(dataGeo[0].lat), lon: parseFloat(dataGeo[0].lon) };
+                    geoCache[cepLimp] = coords;
+                    return coords;
+                }
+            } catch (e) {
+                console.warn("Falha na geolocalização do CEP:", cepLimp, e);
+            }
+            const num = parseInt(cepLimp, 10) || 0;
+            return { lat: num / 100000, lon: num / 100000, eAproximado: true };
+        }
+
+        function calcularDistanciaGeo(p1, p2) {
+            if (!p1 || !p2) return Infinity;
+            const R = 6371;
+            const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+            const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        window.otimizarRota = async function() {
+            const cepPartida = document.getElementById('cep-partida').value.replace(/\D/g, '');
+            if (!cepPartida || cepPartida.length !== 8) {
                 alert('Defina e salve um CEP de Partida válido antes de otimizar a rota.');
                 return;
             }
 
-            const numPartida = parseInt(cepPartidaStr, 10);
-            dataSelecionadaFiltro = document.getElementById('filtro-data').value;
-            const motoristaFiltro = document.getElementById('filtro-motorista').value;
+            const btnOtimizar = document.getElementById('btn-otimizar');
+            const textoOriginal = btnOtimizar.innerHTML;
+            btnOtimizar.disabled = true;
+            btnOtimizar.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Otimizando...`;
 
-            let pendentes = deliveries.filter(d => {
-                const matchData = !dataSelecionadaFiltro || d.dataCriacao === dataSelecionadaFiltro;
-                const matchMotorista = !motoristaFiltro || d.motorista === motoristaFiltro;
-                const matchBairro = !bairroSelecionadoFiltro || (d.bairro || '').trim().toUpperCase() === bairroSelecionadoFiltro;
-                return d.status !== 'Concluída' && matchData && matchMotorista && matchBairro;
-            });
+            try {
+                const pontoPartidaCoords = await obterCoordenadasPorCep(cepPartida);
+                if (!pontoPartidaCoords) {
+                    alert('Não foi possível geolocalizar o ponto de partida.');
+                    btnOtimizar.disabled = false;
+                    btnOtimizar.innerHTML = textoOriginal;
+                    return;
+                }
 
-            if (pendentes.length === 0) {
-                alert('Nenhuma entrega pendente para otimizar com os filtros atuais.');
-                return;
+                dataSelecionadaFiltro = document.getElementById('filtro-data').value;
+                const motoristaFiltro = document.getElementById('filtro-motorista').value;
+
+                let pendentes = deliveries.filter(d => {
+                    const matchData = !dataSelecionadaFiltro || d.dataCriacao === dataSelecionadaFiltro;
+                    const matchMotorista = !motoristaFiltro || d.motorista === motoristaFiltro;
+                    const matchBairro = !bairroSelecionadoFiltro || (d.bairro || '').trim().toUpperCase() === bairroSelecionadoFiltro;
+                    return d.status !== 'Concluída' && matchData && matchMotorista && matchBairro;
+                });
+
+                if (pendentes.length === 0) {
+                    alert('Nenhuma entrega pendente para otimizar com os filtros atuais.');
+                    btnOtimizar.disabled = false;
+                    btnOtimizar.innerHTML = textoOriginal;
+                    return;
+                }
+
+                for (let d of pendentes) {
+                    d._coords = await obterCoordenadasPorCep(d.cep);
+                }
+
+                let atualCoords = pontoPartidaCoords;
+                let naoVisitados = [...pendentes];
+                let rotaOrdenada = [];
+
+                while (naoVisitados.length > 0) {
+                    let maisProximoIdx = 0;
+                    let menorDistancia = Infinity;
+
+                    for (let i = 0; i < naoVisitados.length; i++) {
+                        const dist = calcularDistanciaGeo(atualCoords, naoVisitados[i]._coords);
+                        if (dist < menorDistancia) {
+                            menorDistancia = dist;
+                            maisProximoIdx = i;
+                        }
+                    }
+
+                    const proximo = naoVisitados.splice(maisProximoIdx, 1)[0];
+                    rotaOrdenada.push(proximo);
+                    if (proximo._coords) atualCoords = proximo._coords;
+                }
+
+                const idsOrdenados = new Set(rotaOrdenada.map(d => d.id));
+                const outrasEntregas = deliveries.filter(d => !idsOrdenados.has(d.id));
+
+                rotaOrdenada.forEach((item, idx) => {
+                    item.ordemRota = idx + 1;
+                });
+
+                deliveries = [...rotaOrdenada, ...outrasEntregas];
+                renderDeliveries();
+
+                alert(`Rota otimizada com sucesso para ${rotaOrdenada.length} entrega(s)!`);
+            } catch (err) {
+                console.error("Erro na otimização da rota:", err);
+                alert("Ocorreu um erro ao otimizar a rota.");
+            } finally {
+                btnOtimizar.disabled = false;
+                btnOtimizar.innerHTML = textoOriginal;
             }
-
-            pendentes.sort((a, b) => {
-                const cepA = parseInt((a.cep || '').replace(/\D/g, ''), 10) || 0;
-                const cepB = parseInt((b.cep || '').replace(/\D/g, ''), 10) || 0;
-                
-                const diffA = Math.abs(cepA - numPartida);
-                const diffB = Math.abs(cepB - numPartida);
-
-                return diffA - diffB;
-            });
-
-            const idsOrdenados = new Set(pendentes.map(d => d.id));
-            const outrasEntregas = deliveries.filter(d => !idsOrdenados.has(d.id));
-
-            pendentes.forEach((item, idx) => {
-                item.ordemRota = idx + 1;
-            });
-
-            deliveries = [...pendentes, ...outrasEntregas];
-            salvarEntregasLocais();
-            renderDeliveries();
-
-            alert(`Rota ordenada por CEP mais próximo para ${pendentes.length} entrega(s)!`);
         };
 
         window.atualizarDicasClientes = function() {
@@ -1016,152 +991,6 @@
             if(elCredParc) elCredParc.innerText = `R$ ${totCreditoParcelado.toFixed(2)}`;
             if(elCredVista) elCredVista.innerText = `R$ ${totCreditoVista.toFixed(2)}`;
         }
-
-        window.iniciarComandoVoz = function() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            
-            if (!SpeechRecognition) {
-                alert("O seu navegador não suporta reconhecimento de voz.");
-                return;
-            }
-
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'pt-BR';
-            recognition.interimResults = false;
-
-            const btn = document.getElementById('btn-comando-voz');
-            const txtBtn = document.getElementById('txt-btn-voz');
-            
-            txtBtn.innerText = "Ouvindo...";
-            btn.classList.add('animate-pulse', 'bg-red-600');
-
-            recognition.start();
-
-            recognition.onresult = (event) => {
-                const comando = event.results[0][0].transcript.toLowerCase();
-                txtBtn.innerText = "Comando de Voz";
-                btn.classList.remove('animate-pulse', 'bg-red-600');
-                processarComandoVoz(comando);
-            };
-
-            recognition.onerror = () => {
-                txtBtn.innerText = "Comando de Voz";
-                btn.classList.remove('animate-pulse', 'bg-red-600');
-                falarTexto("Desculpe, não entendi o áudio. Fale a data claramente.");
-            };
-
-            recognition.onend = () => {
-                txtBtn.innerText = "Comando de Voz";
-                btn.classList.remove('animate-pulse', 'bg-red-600');
-            };
-        };
-
-        function extrairDataDoTexto(texto) {
-            const hoje = new Date();
-            let txt = texto.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ");
-
-            const numerosExtenso = {
-                'um': '1', 'primeiro': '1', 'dois': '2', 'três': '3', 'tres': '3', 'quatro': '4', 'cinco': '5',
-                'seis': '6', 'sete': '7', 'oito': '8', 'nove': '9', 'dez': '10', 'onze': '11', 'doze': '12',
-                'treze': '13', 'catorze': '14', 'quatorze': '14', 'quinze': '15', 'dezesseis': '16', 'dezessete': '17',
-                'dezoito': '18', 'dezenove': '19', 'vinte': '20', 'trinta': '30'
-            };
-
-            for (let [p, n] of Object.entries(numerosExtenso)) {
-                txt = txt.replace(new RegExp(`\\b${p}\\b`, 'g'), n);
-            }
-
-            if (txt.includes("hoje")) return hoje.toISOString().split('T')[0];
-            
-            if (txt.includes("ontem")) {
-                const ontem = new Date(hoje);
-                ontem.setDate(hoje.getDate() - 1);
-                return ontem.toISOString().split('T')[0];
-            }
-
-            if (txt.includes("amanhã") || txt.includes("amanha")) {
-                const amanha = new Date(hoje);
-                amanha.setDate(hoje.getDate() + 1);
-                return amanha.toISOString().split('T')[0];
-            }
-
-            const matchNumerico = txt.match(/(\d{1,2})\s*[\/\-]\s*(\d{1,2})(?:\s*[\/\-]\s*(\d{2,4}))?/);
-            if (matchNumerico) {
-                let dia = matchNumerico[1].padStart(2, '0');
-                let mes = matchNumerico[2].padStart(2, '0');
-                let ano = matchNumerico[3] ? (matchNumerico[3].length === 2 ? '20' + matchNumerico[3] : matchNumerico[3]) : hoje.getFullYear();
-                return `${ano}-${mes}-${dia}`;
-            }
-
-            const meses = {
-                'janeiro': '01', 'fevereiro': '02', 'março': '03', 'marco': '03', 'abril': '04',
-                'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
-                'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
-            };
-
-            const matchTexto = txt.match(/(\d{1,2})\s*(?:de)?\s*([a-z]+)(?:\s*(?:de)?\s*(\d{4}))?/);
-            if (matchTexto && meses[matchTexto[2]]) {
-                let dia = matchTexto[1].padStart(2, '0');
-                let mes = meses[matchTexto[2]];
-                let ano = matchTexto[3] || hoje.getFullYear();
-                return `${ano}-${mes}-${dia}`;
-            }
-
-            return null;
-        }
-
-        function processarComandoVoz(comando) {
-            const dataIdentificada = extrairDataDoTexto(comando);
-
-            if (!dataIdentificada) {
-                falarTexto("Não entendi a data. Fale como por exemplo: 'entregas de hoje', ou 'dia 15 de maio'.");
-                return;
-            }
-
-            const entregasDaData = deliveries.filter(d => d.dataCriacao === dataIdentificada);
-            const totalEntregas = entregasDaData.length;
-
-            let totPix = 0, totCredito = 0, totDebito = 0, totDinheiro = 0;
-            let totConfirmar = 0, totCreditoParcelado = 0, totCreditoVista = 0;
-
-            entregasDaData.forEach(d => {
-                if (d.pagamentos) {
-                    totPix += Number(d.pagamentos.pix || 0);
-                    totCredito += Number(d.pagamentos.credito || 0);
-                    totDebito += Number(d.pagamentos.debito || 0);
-                    totDinheiro += Number(d.pagamentos.dinheiro || 0);
-                    totConfirmar += Number(d.pagamentos.confirmar || 0);
-                    totCreditoParcelado += Number(d.pagamentos.creditoParcelado || 0);
-                    totCreditoVista += Number(d.pagamentos.creditoVista || 0);
-                }
-            });
-
-            const totalPagamentos = totPix + totCredito + totDebito + totDinheiro + totConfirmar + totCreditoParcelado + totCreditoVista;
-            const partesData = dataIdentificada.split('-');
-            const dataFormatada = `${partesData[2]}/${partesData[1]}/${partesData[0]}`;
-
-            let resposta = `Na data ${dataFormatada}, foram registradas ${totalEntregas} entregas. `;
-            resposta += totalEntregas > 0 
-                ? `O valor total dos pagamentos recebidos foi de ${totalPagamentos.toFixed(2)} reais.`
-                : `Nenhum pagamento registrado para este dia.`;
-
-            document.getElementById('filtro-data').value = dataIdentificada;
-            renderDeliveries();
-            updateDashboard();
-
-            falarTexto(resposta);
-        }
-
-        function falarTexto(texto) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const mensagem = new SpeechSynthesisUtterance(texto);
-                mensagem.lang = 'pt-BR';
-                window.speechSynthesis.speak(mensagem);
-            } else {
-                alert(texto);
-            }
-        }
     </script>
 </head>
 <body class="bg-gray-100 font-sans pb-44">
@@ -1170,10 +999,6 @@
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold"><i class="fas fa-motorcycle mr-2"></i>App de Entregas - Firebase</h1>
             <div class="flex items-center gap-2">
-                <button id="btn-comando-voz" onclick="iniciarComandoVoz()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs px-2.5 py-1.5 rounded font-semibold flex items-center gap-1 shadow transition">
-                    <i class="fas fa-microphone"></i>
-                    <span id="txt-btn-voz">Comando de Voz</span>
-                </button>
                 <button onclick="realizarBackupManual()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs px-2.5 py-1.5 rounded font-semibold flex items-center gap-1 shadow transition" title="Baixar Backup Manual">
                     <i class="fas fa-download"></i> Backup
                 </button>
