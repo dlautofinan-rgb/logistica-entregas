@@ -29,6 +29,77 @@
         let bairroSelecionadoFiltro = '';
         let dataSelecionadaFiltro = '';
 
+        // --- LÓGICA DE GERENCIAMENTO OFFLINE ---
+        function atualizarIndicadorStatus(status, corBg) {
+            const statusBadge = document.getElementById('sync-status');
+            if (statusBadge) {
+                statusBadge.innerText = status;
+                statusBadge.className = `text-xs text-white px-2 py-1 rounded font-semibold ${corBg}`;
+            }
+        }
+
+        function carregarEntregasLocais() {
+            const salvas = localStorage.getItem('deliveries_cache_local');
+            if (salvas) {
+                try {
+                    deliveries = JSON.parse(salvas);
+                } catch(e) {
+                    console.error("Erro ao ler cache local:", e);
+                }
+            }
+        }
+
+        function salvarEntregasLocais() {
+            localStorage.setItem('deliveries_cache_local', JSON.stringify(deliveries));
+        }
+
+        function adicionarFilaPendencias(acao, payload) {
+            const fila = JSON.parse(localStorage.getItem('fila_pendente_offline') || '[]');
+            fila.push({ acao, payload, timestamp: Date.now() });
+            localStorage.setItem('fila_pendente_offline', JSON.stringify(fila));
+        }
+
+        async function sincronizarPendencias() {
+            const fila = JSON.parse(localStorage.getItem('fila_pendente_offline') || '[]');
+            if (fila.length === 0) return;
+
+            atualizarIndicadorStatus('Sincronizando...', 'bg-blue-500');
+
+            for (const item of fila) {
+                try {
+                    if (item.acao === 'salvar') {
+                        const { entregaObj, editId } = item.payload;
+                        if (editId) {
+                            const entregaRef = ref(db, 'entregas/' + editId);
+                            const snapshot = await get(entregaRef);
+                            let dadosExistentes = snapshot.exists() ? snapshot.val() : {};
+                            await set(entregaRef, { ...dadosExistentes, ...entregaObj });
+                        } else {
+                            const novaEntregaRef = push(ref(db, 'entregas'));
+                            await set(novaEntregaRef, entregaObj);
+                        }
+                    } else if (item.acao === 'excluir') {
+                        const { id } = item.payload;
+                        await remove(ref(db, 'entregas/' + id));
+                    }
+                } catch (e) {
+                    console.error("Falha ao sincronizar item da fila:", e);
+                }
+            }
+
+            localStorage.removeItem('fila_pendente_offline');
+            atualizarIndicadorStatus('Online (Firebase)', 'bg-green-500');
+        }
+
+        window.addEventListener('online', () => {
+            atualizarIndicadorStatus('Online (Firebase)', 'bg-green-500');
+            sincronizarPendencias();
+        });
+
+        window.addEventListener('offline', () => {
+            atualizarIndicadorStatus('Offline (Modo Local)', 'bg-orange-500');
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             const hoje = new Date().toISOString().split('T')[0];
             document.getElementById('data-entrega').value = hoje;
@@ -36,9 +107,16 @@
             dataSelecionadaFiltro = hoje;
             document.getElementById('filtro-data').value = hoje;
             
-            const statusBadge = document.getElementById('sync-status');
-            statusBadge.innerText = 'Online (Firebase)';
-            statusBadge.className = 'text-xs bg-green-500 text-white px-2 py-1 rounded font-semibold';
+            carregarEntregasLocais();
+            renderDeliveries();
+            updateDashboard();
+
+            if (navigator.onLine) {
+                atualizarIndicadorStatus('Online (Firebase)', 'bg-green-500');
+                sincronizarPendencias();
+            } else {
+                atualizarIndicadorStatus('Offline (Modo Local)', 'bg-orange-500');
+            }
 
             const cepPartidaSalvo = localStorage.getItem('cep_partida_fixo');
             if (cepPartidaSalvo) {
@@ -46,7 +124,6 @@
                 buscarEnderecoPartida(cepPartidaSalvo);
             }
 
-            // PERSISTÊNCIA OFFLINE: Impede que as entregas sumam se a conexão oscilar ou cair
             const entregasRef = ref(db, 'entregas');
             onValue(entregasRef, (snapshot) => {
                 if (snapshot.exists()) {
@@ -55,6 +132,7 @@
                         id: key,
                         ...data[key]
                     }));
+                    salvarEntregasLocais();
                 }
                 atualizarChipsBairros();
                 atualizarDicasClientes();
@@ -62,46 +140,69 @@
                 updateDashboard();
             }, (error) => {
                 console.warn("Conexão instável ou offline no momento:", error);
+                atualizarIndicadorStatus('Offline (Modo Local)', 'bg-orange-500');
             });
 
             iniciarVerificadorBackupAutomatico();
         });
 
         window.salvarNoFirebase = async function(entregaObj, editId = null) {
+            // Atualização Otimista no DOM/State Local
+            if (editId) {
+                const index = deliveries.findIndex(d => d.id === editId);
+                if (index !== -1) {
+                    deliveries[index] = { ...deliveries[index], ...entregaObj };
+                }
+            } else {
+                const tempId = 'temp_' + Date.now();
+                deliveries.push({ id: tempId, ...entregaObj });
+            }
+            
+            salvarEntregasLocais();
+            renderDeliveries();
+            updateDashboard();
+
+            if (!navigator.onLine) {
+                adicionarFilaPendencias('salvar', { entregaObj, editId });
+                alert("Modo Offline: Dados salvos localmente! Eles serão sincronizados com a nuvem quando a conexão retornar.");
+                return;
+            }
+
             try {
                 if (editId) {
                     const entregaRef = ref(db, 'entregas/' + editId);
                     const snapshot = await get(entregaRef);
-                    let dadosExistentes = {};
-                    if (snapshot.exists()) {
-                        dadosExistentes = snapshot.val();
-                    }
-                    
-                    const entregaMesclada = {
-                        ...dadosExistentes,
-                        ...entregaObj
-                    };
-                    await set(entregaRef, entregaMesclada);
+                    let dadosExistentes = snapshot.exists() ? snapshot.val() : {};
+                    await set(entregaRef, { ...dadosExistentes, ...entregaObj });
                 } else {
-                    const entregasRef = ref(db, 'entregas');
-                    const novaEntregaRef = push(entregasRef);
+                    const novaEntregaRef = push(ref(db, 'entregas'));
                     await set(novaEntregaRef, entregaObj);
                 }
-                updateDashboard();
             } catch (error) {
-                console.error("Erro ao salvar no Firebase:", error);
-                alert("Erro ao salvar dados na nuvem. Verifique sua conexão.");
+                console.error("Erro ao salvar no Firebase, gravando na fila local:", error);
+                adicionarFilaPendencias('salvar', { entregaObj, editId });
+                atualizarIndicadorStatus('Offline (Modo Local)', 'bg-orange-500');
             }
         };
 
         window.excluirEntregaFirebase = async function(id) {
             if(confirm('Deseja excluir esta entrega?')) {
+                deliveries = deliveries.filter(d => d.id !== id);
+                salvarEntregasLocais();
+                renderDeliveries();
+                updateDashboard();
+
+                if (!navigator.onLine) {
+                    adicionarFilaPendencias('excluir', { id });
+                    return;
+                }
+
                 try {
                     const entregaRef = ref(db, 'entregas/' + id);
                     await remove(entregaRef);
-                    updateDashboard();
                 } catch (error) {
-                    console.error("Erro ao excluir:", error);
+                    console.error("Erro ao excluir no Firebase, armazenando pendência:", error);
+                    adicionarFilaPendencias('excluir', { id });
                 }
             }
         };
@@ -181,7 +282,6 @@
             }
         }
 
-        // OTIMIZAÇÃO POR PROXIMIDADE NUMÉRICA DE CEP (Instantânea e sem falhas na internet)
         window.otimizarRota = function() {
             const cepPartidaStr = document.getElementById('cep-partida').value.replace(/\D/g, '');
             if (!cepPartidaStr || cepPartidaStr.length !== 8) {
@@ -223,6 +323,7 @@
             });
 
             deliveries = [...pendentes, ...outrasEntregas];
+            salvarEntregasLocais();
             renderDeliveries();
 
             alert(`Rota ordenada por CEP mais próximo para ${pendentes.length} entrega(s)!`);
