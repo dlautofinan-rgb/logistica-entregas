@@ -627,10 +627,16 @@
                 let fone = item.contato.replace(/\D/g, '');
                 if (!fone.startsWith('55')) fone = '55' + fone;
 
-                let pecasTexto = item.pecas.map(p => `- ${p.descricao} (R$ ${p.valor.toFixed(2)})`).join('%0A');
-                let msg = `Olá *${item.cliente}*! Aqui é o motorista *${item.motorista}*. Estou saindo para realizar a sua entrega.%0A%0A*Endereço:* ${item.rua}, nº ${item.numero} - ${item.bairro}, ${item.cidade}%0A*Itens:*%0A${pecasTexto}%0A*Valor Total:* R$ ${item.valor.toFixed(2)}%0A%0APor favor, confirme se está no local!`;
+                let listaItens = '';
+                if (item.pecas && item.pecas.length > 0) {
+                    listaItens = item.pecas.map(p => `- ${p.descricao} (R$ ${Number(p.valor || 0).toFixed(2)})`).join('\n');
+                } else {
+                    listaItens = `- Peça única (R$ ${Number(item.valor || 0).toFixed(2)})`;
+                }
 
-                window.open(`https://wa.me/${fone}?text=${msg}`, '_blank');
+                let msg = `MOTORISTA ESTA NA ROTA PARA SUA ENTREGA\n\nOlá *${item.cliente}*! Aqui é o motorista *${item.motorista}*. Estou saindo para realizar a sua entrega.\n*Endereço:* ${item.rua}, nº ${item.numero} - ${item.bairro}, ${item.cidade}\n*Itens:*\n${listaItens}\n*Valor Total:* R$ ${Number(item.valor || 0).toFixed(2)}\n\nPor favor, confirme se está no local!`;
+
+                window.open(`https://wa.me/${fone}?text=${encodeURIComponent(msg)}`, '_blank');
             } else {
                 alert('Número de contato inválido ou ausente.');
             }
