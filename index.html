@@ -651,6 +651,27 @@
             window.open(urlGoogleMaps, '_blank');
         }
 
+        window.abrirWaze = function(id) {
+            const item = deliveries.find(d => d.id === id);
+            if(!item) return;
+
+            // Formatação completa e limpa para evitar falha de busca no Waze
+            let componentes = [];
+            if (item.rua) componentes.push(item.rua);
+            if (item.numero) componentes.push(item.numero);
+            if (item.bairro) componentes.push(item.bairro);
+            if (item.cidade) componentes.push(item.cidade);
+
+            const queryWaze = componentes.join(', ');
+            if (!queryWaze) {
+                alert('Endereço insuficiente para abrir no Waze.');
+                return;
+            }
+
+            const urlWaze = `https://waze.com/ul?q=${encodeURIComponent(queryWaze)}&navigate=yes`;
+            window.open(urlWaze, '_blank');
+        }
+
         window.concluirEntrega = function(id) {
             const item = deliveries.find(d => d.id === id);
             if(item) {
@@ -938,7 +959,11 @@
                         ${botaoStatusHtml}
                         
                         <button onclick="abrirGps('${d.id}')" class="bg-red-500 hover:bg-red-600 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1">
-                            <i class="fas fa-location-arrow"></i> GPS
+                            <i class="fas fa-location-arrow"></i> Maps
+                        </button>
+
+                        <button onclick="abrirWaze('${d.id}')" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1">
+                            <i class="fab fa-waze"></i> Waze
                         </button>
 
                         <button onclick="enviarWhatsApp('${d.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 py-1 rounded shadow flex items-center gap-1">
