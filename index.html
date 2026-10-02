@@ -6,8 +6,6 @@
     <title>Gestão de Entregas - Firebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Biblioteca para transformar elementos HTML em imagem (Canvas) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -30,7 +28,7 @@
         let entregaSelecionadaId = null;
         let bairroSelecionadoFiltro = '';
         let dataSelecionadaFiltro = '';
-        const geoCache = {};
+        const geoCache = {}; // Cache de coordenadas por CEP
 
         window.addEventListener('DOMContentLoaded', () => {
             const hoje = new Date().toISOString().split('T')[0];
@@ -43,6 +41,7 @@
             statusBadge.innerText = 'Online (Firebase)';
             statusBadge.className = 'text-xs bg-green-500 text-white px-2 py-1 rounded font-semibold';
 
+            // Carregar CEP de partida salvo
             const cepPartidaSalvo = localStorage.getItem('cep_partida_fixo');
             if (cepPartidaSalvo) {
                 document.getElementById('cep-partida').value = cepPartidaSalvo;
@@ -64,7 +63,6 @@
                 atualizarDicasClientes();
                 renderDeliveries();
                 updateDashboard();
-                renderClientesCarteira();
             });
 
             iniciarVerificadorBackupAutomatico();
@@ -159,6 +157,7 @@
             }, 60000);
         }
 
+        // --- PONTO DE PARTIDA E OTIMIZAÇÃO DE ROTA ---
         window.salvarCepPartida = function() {
             const cepInput = document.getElementById('cep-partida').value.replace(/\D/g, '');
             if (cepInput.length === 8) {
@@ -383,7 +382,7 @@
                 const pecas = [];
                 let valorTotal = 0;
 
-                document.querySelectorAll('#lista-pecas-form .item-peca').forEach(item => {
+                document.querySelectorAll('.item-peca').forEach(item => {
                     const descricao = item.querySelector('.desc-peca').value;
                     const valor = parseFloat(item.querySelector('.valor-peca').value) || 0;
                     pecas.push({ descricao, valor });
@@ -449,7 +448,7 @@
         }
 
         window.calcularTotalForm = function() {
-            const inputs = document.querySelectorAll('#lista-pecas-form .valor-peca');
+            const inputs = document.querySelectorAll('.valor-peca');
             let total = 0;
             inputs.forEach(input => {
                 total += parseFloat(input.value) || 0;
@@ -656,6 +655,7 @@
             const item = deliveries.find(d => d.id === id);
             if(!item) return;
 
+            // Formatação completa e limpa para evitar falha de busca no Waze
             let componentes = [];
             if (item.rua) componentes.push(item.rua);
             if (item.numero) componentes.push(item.numero);
@@ -1022,385 +1022,23 @@
             if(elCredParc) elCredParc.innerText = `R$ ${totCreditoParcelado.toFixed(2)}`;
             if(elCredVista) elCredVista.innerText = `R$ ${totCreditoVista.toFixed(2)}`;
         }
-
-        // ==================== LÓGICA AVANÇADA DA ABA CARTEIRA DE CLIENTES ====================
-
-        window.alternarAba = function(aba) {
-            const btnEntregas = document.getElementById('tab-entregas');
-            const btnCarteira = document.getElementById('tab-carteira');
-            const secEntregas = document.getElementById('sec-entregas');
-            const secCarteira = document.getElementById('sec-carteira');
-            const footerPag = document.getElementById('footer-pagamentos');
-
-            if (aba === 'entregas') {
-                btnEntregas.className = "px-4 py-2 font-bold text-sm border-b-2 border-white text-white focus:outline-none";
-                btnCarteira.className = "px-4 py-2 font-semibold text-sm text-blue-200 hover:text-white focus:outline-none";
-                secEntregas.classList.remove('hidden');
-                secCarteira.classList.add('hidden');
-                footerPag.classList.remove('hidden');
-            } else {
-                btnCarteira.className = "px-4 py-2 font-bold text-sm border-b-2 border-white text-white focus:outline-none";
-                btnEntregas.className = "px-4 py-2 font-semibold text-sm text-blue-200 hover:text-white focus:outline-none";
-                secCarteira.classList.remove('hidden');
-                secEntregas.classList.add('hidden');
-                footerPag.classList.add('hidden');
-                renderClientesCarteira();
-            }
-        }
-
-        let cupomItens = [];
-        let clienteCupomAtual = null;
-        let dataCupomAtual = '';
-
-        function renderClientesCarteira() {
-            const list = document.getElementById('carteira-list');
-            if(!list) return;
-            list.innerHTML = '';
-
-            const buscaNome = (document.getElementById('busca-carteira-nome')?.value || '').toLowerCase();
-            const dataInicio = document.getElementById('busca-carteira-inicio')?.value;
-            const dataFim = document.getElementById('busca-carteira-fim')?.value;
-
-            // Puxa e consolida todas as vendas automaticamente
-            const clientesMap = {};
-            deliveries.forEach(d => {
-                if (d.cliente) {
-                    const chave = d.cliente.trim().toUpperCase();
-                    if (!clientesMap[chave]) {
-                        clientesMap[chave] = {
-                            nome: d.cliente,
-                            contato: d.contato || '',
-                            vendas: []
-                        };
-                    }
-
-                    // Verifica se a venda do cliente está dentro das datas do calendário
-                    const dataVenda = d.dataCriacao || '';
-                    let passaData = true;
-                    if (dataInicio && dataVenda < dataInicio) passaData = false;
-                    if (dataFim && dataVenda > dataFim) passaData = false;
-
-                    if (passaData) {
-                        clientesMap[chave].vendas.push(d);
-                    }
-                }
-            });
-
-            // Filtro por Nome/Telefone
-            const listaClientes = Object.values(clientesMap).filter(c => {
-                const combinaNome = c.nome.toLowerCase().includes(buscaNome) || c.contato.includes(buscaNome);
-                return combinaNome && c.vendas.length > 0;
-            });
-
-            if (listaClientes.length === 0) {
-                list.innerHTML = `<div class="bg-white p-6 rounded-xl shadow text-center text-gray-500 text-sm">Nenhum registro de cliente/venda encontrado para o período selecionado.</div>`;
-                return;
-            }
-
-            listaClientes.forEach(c => {
-                // Ordena vendas da mais recente para a mais antiga
-                c.vendas.sort((a,b) => (b.dataCriacao || '').localeCompare(a.dataCriacao || ''));
-
-                let totalGeralCliente = 0;
-                let vendasCardsHtml = '';
-
-                c.vendas.forEach(venda => {
-                    totalGeralCliente += Number(venda.valor || 0);
-
-                    let pecasTexto = [];
-                    if (venda.pecas && venda.pecas.length > 0) {
-                        pecasTexto = venda.pecas.map(p => `<span class="bg-blue-50 text-blue-900 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-semibold">${p.descricao} (R$ ${Number(p.valor || 0).toFixed(2)})</span>`);
-                    } else {
-                        pecasTexto.push(`<span class="bg-gray-100 text-gray-800 px-2 py-0.5 rounded text-[11px]">Peça Única (R$ ${Number(venda.valor || 0).toFixed(2)})</span>`);
-                    }
-
-                    const dataFormatted = venda.dataCriacao ? venda.dataCriacao.split('-').reverse().join('/') : 'Data N/D';
-
-                    vendasCardsHtml += `
-                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                            <div>
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="text-xs font-bold text-gray-700"><i class="fas fa-calendar-alt text-blue-500 mr-1"></i>${dataFormatted}</span>
-                                    <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">R$ ${Number(venda.valor || 0).toFixed(2)}</span>
-                                </div>
-                                <div class="flex flex-wrap gap-1 mt-1">
-                                    ${pecasTexto.join(' ')}
-                                </div>
-                            </div>
-                            <button onclick="abrirModalGerarCupom('${encodeURIComponent(JSON.stringify(c))}', '${venda.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded shadow flex items-center gap-1 w-full sm:w-auto justify-center">
-                                <i class="fas fa-receipt"></i> Cupom Esta Venda
-                            </button>
-                        </div>
-                    `;
-                });
-
-                const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-xl shadow border border-gray-200 space-y-3";
-                
-                card.innerHTML = `
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-2">
-                        <div>
-                            <h3 class="font-bold text-gray-800 text-base flex items-center gap-2">
-                                <i class="fas fa-user-circle text-blue-600 text-lg"></i> ${c.nome}
-                            </h3>
-                            <p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-phone mr-1"></i>Contato: <strong>${c.contato || 'Não informado'}</strong></p>
-                            <p class="text-xs text-indigo-700 font-bold mt-0.5"><i class="fas fa-shopping-bag mr-1"></i>${c.vendas.length} venda(s) no período | Total: R$ ${totalGeralCliente.toFixed(2)}</p>
-                        </div>
-                        <button onclick="enviarTodasVendasEmLote('${encodeURIComponent(JSON.stringify(c))}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow flex items-center gap-1.5 w-full sm:w-auto justify-center">
-                            <i class="fab fa-whatsapp text-sm"></i> Enviar Todos da Lista
-                        </button>
-                    </div>
-
-                    <div class="space-y-2">
-                        <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">Histórico de Peças / Vendas do Cliente:</span>
-                        ${vendasCardsHtml}
-                    </div>
-                `;
-                list.appendChild(card);
-            });
-        }
-
-        window.filtrarCarteira = function() {
-            renderClientesCarteira();
-        }
-
-        window.limparFiltroCarteira = function() {
-            document.getElementById('busca-carteira-nome').value = '';
-            document.getElementById('busca-carteira-inicio').value = '';
-            document.getElementById('busca-carteira-fim').value = '';
-            renderClientesCarteira();
-        }
-
-        window.abrirModalGerarCupom = function(clienteJson, vendaId = null) {
-            clienteCupomAtual = JSON.parse(decodeURIComponent(clienteJson));
-            cupomItens = [];
-            dataCupomAtual = new Date().toLocaleDateString('pt-BR');
-
-            if (vendaId) {
-                const vendaEncontrada = clienteCupomAtual.vendas.find(v => v.id === vendaId);
-                if (vendaEncontrada) {
-                    if (vendaEncontrada.pecas && vendaEncontrada.pecas.length > 0) {
-                        cupomItens = vendaEncontrada.pecas.map(p => ({ descricao: p.descricao, valor: parseFloat(p.valor) || 0 }));
-                    } else {
-                        cupomItens = [{ descricao: 'Peça Única', valor: parseFloat(vendaEncontrada.valor) || 0 }];
-                    }
-                    if (vendaEncontrada.dataCriacao) {
-                        dataCupomAtual = vendaEncontrada.dataCriacao.split('-').reverse().join('/');
-                    }
-                }
-            }
-
-            renderItensCupomModal();
-            atualizarPreviewCupom();
-            document.getElementById('modal-cupom').classList.remove('hidden');
-        }
-
-        window.fecharModalCupom = function() {
-            document.getElementById('modal-cupom').classList.add('hidden');
-            clienteCupomAtual = null;
-            cupomItens = [];
-        }
-
-        window.adicionarItemCupom = function() {
-            const desc = document.getElementById('cupom-item-desc').value.trim();
-            const val = parseFloat(document.getElementById('cupom-item-valor').value) || 0;
-
-            if (!desc) {
-                alert('Informe a descrição da peça/item.');
-                return;
-            }
-
-            cupomItens.push({ descricao: desc, valor: val });
-            document.getElementById('cupom-item-desc').value = '';
-            document.getElementById('cupom-item-valor').value = '';
-            
-            renderItensCupomModal();
-            atualizarPreviewCupom();
-        }
-
-        window.removerItemCupom = function(index) {
-            cupomItens.splice(index, 1);
-            renderItensCupomModal();
-            atualizarPreviewCupom();
-        }
-
-        function renderItensCupomModal() {
-            const container = document.getElementById('cupom-itens-list');
-            container.innerHTML = '';
-
-            cupomItens.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = "flex justify-between items-center text-xs bg-gray-50 p-2 rounded border border-gray-200";
-                div.innerHTML = `
-                    <span class="font-semibold text-gray-700">${item.descricao}</span>
-                    <div class="flex items-center gap-2">
-                        <span class="font-bold text-gray-900">R$ ${item.valor.toFixed(2)}</span>
-                        <button onclick="removerItemCupom(${index})" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-times"></i></button>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function atualizarPreviewCupom() {
-            if (!clienteCupomAtual) return;
-
-            document.getElementById('cupom-data-hora').innerText = dataCupomAtual;
-            document.getElementById('cupom-cliente-nome').innerText = clienteCupomAtual.nome;
-            document.getElementById('cupom-cliente-fone').innerText = clienteCupomAtual.contato || 'N/A';
-
-            const tbody = document.getElementById('cupom-tabela-itens');
-            tbody.innerHTML = '';
-
-            let total = 0;
-            if (cupomItens.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="2" class="text-center py-2 text-gray-400 italic text-[11px]">Nenhum item adicionado ao cupom.</td></tr>`;
-            } else {
-                cupomItens.forEach(item => {
-                    total += item.valor;
-                    const tr = document.createElement('tr');
-                    tr.className = "border-b border-dashed border-gray-300";
-                    tr.innerHTML = `
-                        <td class="py-1 text-left text-gray-800 font-mono text-[11px]">${item.descricao}</td>
-                        <td class="py-1 text-right text-gray-800 font-mono text-[11px]">R$ ${item.valor.toFixed(2)}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-
-            document.getElementById('cupom-total').innerText = `R$ ${total.toFixed(2)}`;
-        }
-
-        window.enviarCupomWhatsAppImagem = async function() {
-            if (cupomItens.length === 0) {
-                alert('Adicione ao menos um item/peça para gerar o cupom.');
-                return;
-            }
-
-            const elementCupom = document.getElementById('cupom-printable');
-            const btnEnviar = document.getElementById('btn-enviar-cupom');
-            const textoOriginal = btnEnviar.innerHTML;
-
-            try {
-                btnEnviar.disabled = true;
-                btnEnviar.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i> Gerando Imagem...`;
-
-                const canvasRender = await html2canvas(elementCupom, { scale: 2, backgroundColor: "#ffffff" });
-
-                const imageBase64 = canvasRender.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.href = imageBase64;
-                const nomeArquivo = `cupom-${clienteCupomAtual.nome.replace(/\s+/g, '_')}.png`;
-                link.download = nomeArquivo;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-                if (clienteCupomAtual.contato) {
-                    let fone = clienteCupomAtual.contato.replace(/\D/g, '');
-                    if (!fone.startsWith('55')) fone = '55' + fone;
-
-                    const msg = `Olá *${clienteCupomAtual.nome}*!\nSegue em anexo o seu *Cupom de Venda / Peças* da *DL AUTO PEÇAS*.\n\n*(A imagem do cupom foi baixada no seu aparelho. Basta anexá-la a esta conversa!)*`;
-                    
-                    setTimeout(() => {
-                        window.open(`https://wa.me/${fone}?text=${encodeURIComponent(msg)}`, '_blank');
-                    }, 800);
-                } else {
-                    alert('Imagem do cupom baixada com sucesso! O cliente não possui número de contato cadastrado.');
-                }
-
-                fecharModalCupom();
-            } catch (err) {
-                console.error("Erro ao gerar imagem do cupom:", err);
-                alert("Ocorreu um erro ao gerar a imagem do cupom.");
-            } finally {
-                btnEnviar.disabled = false;
-                btnEnviar.innerHTML = textoOriginal;
-            }
-        }
-
-        // DISPARO EM LOTE / ENVIAR TODOS OS CUPONS DE UMA VEZ
-        window.enviarTodasVendasEmLote = async function(clienteJson) {
-            const cliente = JSON.parse(decodeURIComponent(clienteJson));
-            if (!cliente.vendas || cliente.vendas.length === 0) {
-                alert('Este cliente não possui vendas no período selecionado.');
-                return;
-            }
-
-            if (!confirm(`Deseja gerar e baixar as imagens de todas as ${cliente.vendas.length} venda(s) para enviar ao cliente?`)) {
-                return;
-            }
-
-            for (let i = 0; i < cliente.vendas.length; i++) {
-                const venda = cliente.vendas[i];
-                
-                // Prepara modal silenciosamente para renderizar
-                clienteCupomAtual = cliente;
-                cupomItens = (venda.pecas && venda.pecas.length > 0) 
-                    ? venda.pecas.map(p => ({ descricao: p.descricao, valor: parseFloat(p.valor) || 0 })) 
-                    : [{ descricao: 'Peça Única', valor: parseFloat(venda.valor) || 0 }];
-
-                dataCupomAtual = venda.dataCriacao ? venda.dataCriacao.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
-
-                atualizarPreviewCupom();
-
-                // Gera a imagem canvas do cupom
-                const elementCupom = document.getElementById('cupom-printable');
-                const canvasRender = await html2canvas(elementCupom, { scale: 2, backgroundColor: "#ffffff" });
-
-                const imageBase64 = canvasRender.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.href = imageBase64;
-                link.download = `cupom-${venda.dataCriacao || 'venda'}-${i+1}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-
-            if (cliente.contato) {
-                let fone = cliente.contato.replace(/\D/g, '');
-                if (!fone.startsWith('55')) fone = '55' + fone;
-
-                const msg = `Olá *${cliente.nome}*!\nEnviamos em anexo os *${cliente.vendas.length} Cupons de Vendas / Peças* da *DL AUTO PEÇAS*.\n\n*(As imagens dos cupons foram baixadas no seu aparelho. Basta anexá-las aqui!)*`;
-                
-                setTimeout(() => {
-                    window.open(`https://wa.me/${fone}?text=${encodeURIComponent(msg)}`, '_blank');
-                }, 1000);
-            } else {
-                alert(`Todas as ${cliente.vendas.length} imagens de cupom foram baixadas com sucesso!`);
-            }
-        }
     </script>
 </head>
 <body class="bg-gray-100 font-sans pb-44">
 
-    <!-- HEADER COM NAVEGAÇÃO ENTRE ABAS -->
     <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
-        <div class="container mx-auto flex flex-col gap-3">
-            <div class="flex justify-between items-center">
-                <h1 class="text-xl font-bold"><i class="fas fa-motorcycle mr-2"></i>App de Entregas - Firebase</h1>
-                <div class="flex items-center gap-2">
-                    <button onclick="realizarBackupManual()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs px-2.5 py-1.5 rounded font-semibold flex items-center gap-1 shadow transition" title="Baixar Backup Manual">
-                        <i class="fas fa-download"></i> Backup
-                    </button>
-                    <span id="sync-status" class="text-xs bg-yellow-500 text-black px-2 py-1 rounded font-semibold">Conectando...</span>
-                </div>
-            </div>
-
-            <!-- Botões das Abas -->
-            <div class="flex border-b border-blue-400">
-                <button id="tab-entregas" onclick="alternarAba('entregas')" class="px-4 py-2 font-bold text-sm border-b-2 border-white text-white focus:outline-none">
-                    <i class="fas fa-shipping-fast mr-1.5"></i> Gestão de Entregas
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold"><i class="fas fa-motorcycle mr-2"></i>App de Entregas - Firebase</h1>
+            <div class="flex items-center gap-2">
+                <button onclick="realizarBackupManual()" class="bg-blue-700 hover:bg-blue-800 text-white text-xs px-2.5 py-1.5 rounded font-semibold flex items-center gap-1 shadow transition" title="Baixar Backup Manual">
+                    <i class="fas fa-download"></i> Backup
                 </button>
-                <button id="tab-carteira" onclick="alternarAba('carteira')" class="px-4 py-2 font-semibold text-sm text-blue-200 hover:text-white focus:outline-none">
-                    <i class="fas fa-id-card mr-1.5"></i> Clientes de Carteira / Vendas
-                </button>
+                <span id="sync-status" class="text-xs bg-yellow-500 text-black px-2 py-1 rounded font-semibold">Conectando...</span>
             </div>
         </div>
     </header>
 
-    <!-- SEÇÃO TELA 1: GESTÃO DE ENTREGAS -->
-    <main id="sec-entregas" class="container mx-auto p-4 max-w-2xl">
+    <main class="container mx-auto p-4 max-w-2xl">
 
         <section class="bg-white p-4 rounded-xl shadow-md mb-6 border-l-4 border-indigo-600">
             <div class="flex justify-between items-center mb-2">
@@ -1544,115 +1182,6 @@
 
     </main>
 
-    <!-- SEÇÃO TELA 2: CLIENTES DE CARTEIRA / BUSCA POR DATAS NO CALENDÁRIO -->
-    <main id="sec-carteira" class="container mx-auto p-4 max-w-2xl hidden">
-        <section class="bg-white p-4 rounded-xl shadow-md mb-6">
-            <h2 class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <i class="fas fa-address-book text-blue-600"></i> Clientes de Carteira & Vendas Automáticas
-            </h2>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-[11px] font-semibold text-gray-600 mb-1"><i class="fas fa-user mr-1"></i>Nome do Cliente ou Telefone</label>
-                    <input type="text" id="busca-carteira-nome" placeholder="Digite para filtrar..." oninput="filtrarCarteira()" class="w-full border p-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-400">
-                </div>
-                
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[11px] font-semibold text-gray-600 mb-1"><i class="fas fa-calendar mr-1"></i>Data Inicial</label>
-                        <input type="date" id="busca-carteira-inicio" onchange="filtrarCarteira()" class="w-full border p-2 rounded-lg text-sm bg-gray-50">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-semibold text-gray-600 mb-1"><i class="fas fa-calendar mr-1"></i>Data Final</label>
-                        <input type="date" id="busca-carteira-fim" onchange="filtrarCarteira()" class="w-full border p-2 rounded-lg text-sm bg-gray-50">
-                    </div>
-                </div>
-
-                <div class="flex justify-end pt-1">
-                    <button onclick="limparFiltroCarteira()" class="text-xs text-blue-600 hover:text-blue-800 font-semibold underline">
-                        Limpar Filtros de Calendário
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <section>
-            <div id="carteira-list" class="space-y-4"></div>
-        </section>
-    </main>
-
-    <!-- MODAL DE GERAR CUPOM DE VENDA PARA CLIENTE -->
-    <div id="modal-cupom" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden p-3 overflow-y-auto">
-        <div class="bg-white rounded-xl p-4 w-full max-w-md shadow-2xl max-h-[95vh] flex flex-col">
-            <div class="flex justify-between items-center border-b pb-2 mb-3">
-                <h3 class="text-sm font-bold text-gray-800 flex items-center gap-1.5">
-                    <i class="fas fa-receipt text-emerald-600"></i> Gerador de Cupom de Venda
-                </h3>
-                <button onclick="fecharModalCupom()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-base"></i></button>
-            </div>
-
-            <!-- Formulário para Incluir Peças Dinamicamente -->
-            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-xs space-y-2">
-                <span class="font-bold text-gray-700 block"><i class="fas fa-plus-circle text-blue-500 mr-1"></i>Adicionar Peça / Item Adicional ao Cupom</span>
-                <div class="flex gap-2">
-                    <input type="text" id="cupom-item-desc" placeholder="Descrição da peça" class="w-full border p-2 rounded bg-white">
-                    <input type="number" step="0.01" id="cupom-item-valor" placeholder="Valor R$" class="w-28 border p-2 rounded bg-white">
-                    <button type="button" onclick="adicionarItemCupom()" class="bg-blue-600 text-white font-bold px-3 py-2 rounded hover:bg-blue-700">Incluir</button>
-                </div>
-                <div id="cupom-itens-list" class="space-y-1.5 mt-2 max-h-28 overflow-y-auto"></div>
-            </div>
-
-            <!-- PREVIEW DO CUPOM TÉRMICO -->
-            <div class="overflow-y-auto mb-3 flex-1 border rounded p-2 bg-gray-100 flex justify-center">
-                <div id="cupom-printable" class="bg-white p-4 text-black shadow font-mono text-xs w-[280px] border border-gray-300">
-                    <!-- DADOS FIXOS DA LOJA -->
-                    <div class="text-center border-b border-black pb-2 mb-2">
-                        <p class="font-bold text-sm uppercase">DL AUTO PEÇAS</p>
-                        <p class="text-[10px]">DANIELLE APARECIDA BATISTA LOURENÇO</p>
-                        <p class="text-[10px]">CNPJ: 18.615.637/0001-58</p>
-                        <p class="text-[9px] mt-1 text-gray-600">DOCUMENTO NÃO FISCAL - COMPROVANTE DE VENDA</p>
-                    </div>
-
-                    <!-- DADOS DA DATA E CLIENTE -->
-                    <div class="border-b border-black pb-2 mb-2 text-[10px] space-y-0.5">
-                        <p><strong>DATA:</strong> <span id="cupom-data-hora"></span></p>
-                        <p><strong>CLIENTE:</strong> <span id="cupom-cliente-nome"></span></p>
-                        <p><strong>CONTATO:</strong> <span id="cupom-cliente-fone"></span></p>
-                    </div>
-
-                    <!-- ITENS DO CUPOM -->
-                    <table class="w-full mb-2">
-                        <thead>
-                            <tr class="border-b border-black text-left text-[10px]">
-                                <th class="pb-1">DESCRIÇÃO PEÇA</th>
-                                <th class="pb-1 text-right">VALOR</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cupom-tabela-itens"></tbody>
-                    </table>
-
-                    <!-- TOTAL -->
-                    <div class="border-t border-black pt-2 flex justify-between items-center font-bold text-xs">
-                        <span>VALOR TOTAL:</span>
-                        <span id="cupom-total">R$ 0,00</span>
-                    </div>
-
-                    <div class="text-center mt-4 pt-2 border-t border-dashed border-gray-400 text-[9px] text-gray-600">
-                        <p>Obrigado pela preferência!</p>
-                        <p>DL Auto Peças - Qualidade e Confiança</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onclick="fecharModalCupom()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 text-xs px-3 py-2 rounded font-semibold">Cancelar</button>
-                <button type="button" id="btn-enviar-cupom" onclick="enviarCupomWhatsAppImagem()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded flex items-center gap-1.5 shadow">
-                    <i class="fab fa-whatsapp text-sm"></i> Baixar Imagem & Enviar WhatsApp
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAIS EXISTENTES -->
     <div id="modal-motorista" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-xl p-4 w-full max-w-xs shadow-2xl">
             <h3 class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-motorcycle text-blue-500 mr-1"></i>Alterar Motorista</h3>
@@ -1750,8 +1279,7 @@
         </div>
     </div>
 
-    <!-- PAINEL DE PAGAMENTOS INFERIOR -->
-    <footer id="footer-pagamentos" class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 z-40">
+    <footer class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 z-40">
         <div class="container mx-auto max-w-2xl">
             <h3 class="text-xs font-bold text-gray-500 uppercase mb-2 text-center">Painel de Pagamentos da Data Selecionada</h3>
             <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5 text-center">
